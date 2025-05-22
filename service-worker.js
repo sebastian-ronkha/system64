@@ -1,10 +1,9 @@
-const CACHE_NAME = 'system64-cache-v1';
+const CACHE_NAME = 'system64-cache-v1'; // If you change files below, make this v2, then v3, etc.
 const urlsToCache = [
   '/',             // This represents your index.html at the root for some servers
   'index.html',    // Your main app file
   'icon-192.png',  // Your app icon
-  // Add 'icon-512.png' here if you made one and want to cache it
-  // e.g., 'icon-512.png',
+  'icon-512.png'   // ADDED THIS LINE - Your other app icon
 ];
 
 // When the app is "installed" by the browser
@@ -53,7 +52,12 @@ self.addEventListener('fetch', function(event) {
 
             return networkResponse;
           }
-        );
+        ).catch(function() {
+          // If the network request fails (e.g., offline) and it's not in cache,
+          // the browser will show its default offline error page.
+          // You could optionally return a custom offline.html page here if you had one:
+          // return caches.match('/offline.html');
+        });
       }
     )
   );
