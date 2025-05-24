@@ -1,11 +1,21 @@
 {
+  "id": "/",
   "name": "SYSTEM 64",
   "short_name": "SYSTEM 64",
   "description": "Your awesome real-life leveling system!",
-  "start_url": "./index.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#DDF9F1",
   "theme_color": "#00DD33",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "dir": "ltr",
+  "lang": "en-US",
+  "prefer_related_applications": false,
+  "related_applications": [],
   "icons": [
     {
       "src": "icons/icon-48x48.png",
