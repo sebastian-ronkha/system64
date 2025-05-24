@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SYSTEM 64</title>
+    <link id="themeFontLink" href="" rel="stylesheet">
+    <link rel="manifest" href="/manifest.json">
+
+    <link rel="icon" href="/assets/icon-48x48-B4-lXP1y.png" type="image/png" sizes="48x48">
+    <link rel="apple-touch-icon" href="/assets/icon-192x192-CFap6Ozg.png">
+
+
+    <meta name="theme-color" content="#DDF9F1">
+
+    <!-- CHART.JS LIBRARY - MOVED TO CORRECT LOCATION -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" crossorigin src="/js/index.js"></script>
+</head>
+
+<body class="theme-minimalist"> <!-- Default theme, can be changed by JS -->
+    <div id="introOverlay" class="intro-overlay"></div>
+
+    <div class="container hidden-for-intro">
+        <header>
+            <h1>SYSTEM <span id="easterEggTrigger64">64</span></h1>
+            <div id="messageDiv" class="message" aria-live="polite">Welcome! Set up your character or load progress.
+            </div>
+        </header>
+
+        <section id="setupScreen" class="screen">
+            <h2>Create Your Character</h2>
+            <form id="setupForm">
+                <input type="text" id="nameInput" placeholder="Name" required>
+                <input type="number" id="ageInput" placeholder="Age" required min="1">
+                <input type="text" id="statusInput" placeholder="Status (e.g., Student)" required>
+                <input type="number" id="weightInput" placeholder="Weight (kg)" step="0.1" required min="1">
+                <input type="number" id="heightInput" placeholder="Height (cm)" required min="1">
+                <button type="submit">Create Character</button>
+            </form>
+        </section>
+
+        <section id="mainAppScreen" class="screen hidden">
+            <aside id="mainControlsDiv">
+                <button id="characterProfileButton">Character Profile</button>
+                <button id="dashboardButton">Dashboard</button>
+                <button id="generateTaskButton">New Task</button>
+                <button id="resetProgressButton">Reset Progress</button>
+            </aside>
+            <main id="taskDisplayDiv">No task active.</main>
+        </section>
+
+        <!-- Modals -->
+        <div id="characterProfileModal" class="modal hidden" role="dialog" aria-modal="true"
+            aria-labelledby="characterProfileModalTitle">
+            <div class="modal-content">
+                <button class="modal-close-button" data-modal-close="characterProfileModal"
+                    aria-label="Close Character Profile">×</button>
+                <h3 id="characterProfileModalTitle">Character Profile</h3>
+                <div id="profileContent"></div>
+            </div>
+        </div>
+
+        <!-- MODIFIED DASHBOARD MODAL HTML -->
+        <div id="dashboardModal" class="modal hidden" role="dialog" aria-modal="true"
+            aria-labelledby="dashboardModalTitle">
+            <div class="modal-content">
+                <button class="modal-close-button" data-modal-close="dashboardModal"
+                    aria-label="Close Dashboard">×</button>
+                <h3 id="dashboardModalTitle">Dashboard</h3>
+
+                <!-- Container for Normal Dashboard (Progress Bars) -->
+                <div id="normalDashboardView">
+                    <div id="normalDashboardTextStats" style="margin-bottom: 15px; text-align: center;">
+                        <!-- Text stats (Name, Rank, XP) will be populated here -->
+                    </div>
+                    <div id="normalDashboardSkillsContent">
+                        <!-- Skill progress bars will be populated here by JS -->
+                    </div>
+                    <div class="modal-actions" style="margin-top: 20px; justify-content: center;">
+                        <button id="switchToAdvancedDashboardButton" class="modal-button-confirm">View Advanced
+                            Dashboard</button>
+                    </div>
+                </div>
+
+                <!-- Container for Advanced Dashboard (Radar Chart) -->
+                <div id="advancedDashboardView" class="hidden"> <!-- Start hidden -->
+                    <div id="advancedDashboardTextStats" style="margin-bottom: 15px; text-align: center;">
+                        <!-- Text stats (Name, Rank, XP) will be populated here -->
+                    </div>
+                    <div id="radarChartContainer"
+                        style="position: relative; height:auto; min-height:300px; width:90%; max-width: 500px; margin: 10px auto;">
+                        <canvas id="skillRadarChart"></canvas>
+                    </div>
+                    <div class="modal-actions" style="margin-top: 20px; justify-content: center;">
+                        <button id="switchToNormalDashboardButton" class="modal-button-confirm">View Normal
+                            Dashboard</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- END OF MODIFIED DASHBOARD MODAL HTML -->
+
+
+        <div id="timerCompleteModal" class="modal hidden" role="dialog" aria-modal="true"
+            aria-labelledby="timerCompleteModalTitle">
+            <div class="modal-content">
+                <h3 id="timerCompleteModalTitle">Timer Finished!</h3>
+                <p>Did you complete the task successfully within the allocated time?</p>
+                <div class="modal-actions">
+                    <button id="timerTaskCompletedButton" class="task-button-complete">Yes, Completed</button>
+                    <button id="timerTaskUnfinishedButton" class="task-button-fail">No, Unfinished</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="resetConfirmationModal" class="modal hidden" role="dialog" aria-modal="true"
+            aria-labelledby="resetConfirmationModalTitle">
+            <div class="modal-content">
+                <h3 id="resetConfirmationModalTitle">Hold Your Horses!</h3>
+                <p id="resetConfirmationMessageDiv"></p>
+                <div class="modal-actions">
+                    <button id="resetConfirmYesButton" class="task-button-fail">Yes</button>
+                    <button id="resetConfirmNoButton" class="task-button-complete">No</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="skipWarningModal" class="modal hidden" role="dialog" aria-modal="true"
+            aria-labelledby="skipWarningModalTitle">
+            <div class="modal-content">
+                <h3 id="skipWarningModalTitle">System Alert: Task Avoidance Detected</h3>
+                <p>System analysis indicates a high frequency of task skipping.</p>
+                <p style="font-size: 0.9em; margin-top: 15px; padding: 10px; border: 1px dashed var(--color-warning);">
+                    <strong>Notice:</strong> Continued skipping will result in consequences. If more than 10 additional
+                    tasks are skipped from this point, a deduction of <strong>-5 XP</strong> will be applied for each
+                    subsequent skip.
+                </p>
+                <div class="modal-actions">
+                    <button id="skipWarningOkButton" class="modal-button-confirm">Understood</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="emergencyQuestModal" class="modal hidden" role="dialog" aria-modal="true"
+            aria-labelledby="emergencyQuestModalTitle">
+            <div class="modal-content">
+                <h3 id="emergencyQuestModalTitle">Emergency Quest</h3>
+                <p>Touch some grass! You are spending too much time on this. Wait for this cool down.</p>
+                <p><strong>System Lockout Active. Awaiting Cooldown Expiration:</strong></p>
+                <div id="emergencyQuestTimer" class="timer-display">01:00:00</div>
+            </div>
+        </div>
+
+        <div id="cheatModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cheatModalTitle">
+            <div class="modal-content">
+                <button class="modal-close-button" data-modal-close="cheatModal" aria-label="Close">×</button>
+                <h3 id="cheatModalTitle" style="color: var(--color-error);">Warning!</h3>
+                <p id="cheatMessageText">Are you sure about that?</p>
+                <div class="modal-actions single-button-modal">
+                    <button id="cheatSorryButton" class="modal-button-sorry">Sorry</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="simpleThemeToggleModal" class="modal hidden" role="dialog" aria-modal="true"
+            aria-labelledby="simpleThemeToggleModalTitle">
+            <div class="modal-content">
+                <button class="modal-close-button" data-modal-close="simpleThemeToggleModal"
+                    aria-label="Close">×</button>
+                <h3 id="simpleThemeToggleModalTitle">Secret System Activated</h3>
+                <p id="simpleThemeToggleText">Switch basic theme?</p>
+                <div class="modal-actions">
+                    <button id="simpleThemeToggleYesButton" class="modal-button-confirm">Yes</button>
+                    <button id="simpleThemeToggleNoButton" class="modal-button-cancel">No</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="superSecretThemesModal" class="modal hidden" role="dialog" aria-modal="true"
+            aria-labelledby="superSecretThemesModalTitle">
+            <div class="modal-content">
+                <button class="modal-close-button" data-modal-close="superSecretThemesModal"
+                    aria-label="Close Super Secret Themes">×</button>
+                <h3 id="superSecretThemesModalTitle">Super Secret Themes</h3>
+                <div id="superSecretThemeOptionsView">
+                    <p>Select a new operational aesthetic:</p>
+                    <div class="theme-options-grid">
+                        <button data-theme-name="matrix">Matrix</button>
+                        <button data-theme-name="8bit">8-Bit</button>
+                        <button data-theme-name="CRT-Glow">CRT Glow</button>
+                        <button data-theme-name="early-web">Early Web</button>
+                        <button data-theme-name="text-terminal">Text Terminal</button>
+                        <button data-theme-name="cyberpunk">Cyberpunk</button>
+                        <button data-theme-name="minimalist">Minimalist</button>
+                    </div>
+                </div>
+                <div id="superSecretConfirmationView" class="hidden">
+                    <p id="superSecretConfirmationText">Do you want to change to this theme?</p>
+                    <div class="modal-actions">
+                        <button id="superSecretConfirmYesButton" class="modal-button-confirm">Yes</button>
+                        <button id="superSecretConfirmNoButton" class="modal-button-cancel">No</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="supportPromptModal" class="modal hidden" role="dialog" aria-modal="true"
+            aria-labelledby="supportPromptModalTitle">
+            <div class="modal-content">
+                <h3 id="supportPromptModalTitle">Support Creator</h3>
+                <p>This is for supporting this creator. Do you wish to continue?</p>
+                <div class="modal-actions">
+                    <button id="supportPromptYes" class="modal-button-confirm">Yes</button>
+                    <button id="supportPromptNo" class="modal-button-cancel">No</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="supportRedirectConfirmModal" class="modal hidden" role="dialog" aria-modal="true"
+            aria-labelledby="supportRedirectConfirmModalTitle">
+            <div class="modal-content">
+                <h3 id="supportRedirectConfirmModalTitle">Confirm Redirect</h3>
+                <p>You are going to be directed to the creator's website. Do you wish to proceed?</p>
+                <div class="modal-actions">
+                    <button id="supportRedirectConfirmYes" class="modal-button-confirm">Yes</button>
+                    <button id="supportRedirectConfirmNo" class="modal-button-cancel">No</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="supportNoInternetModal" class="modal hidden" role="dialog" aria-modal="true"
+            aria-labelledby="supportNoInternetModalTitle">
+            <div class="modal-content">
+                <h3 id="supportNoInternetModalTitle">Connection Issue</h3>
+                <p>Sorry, I'm unable to redirect you. This is the website: <a id="supportNoInternetLink"
+                        href="https://yiguyfguygtyig.my.canva.site/support-system-64" target="_blank"
+                        rel="noopener noreferrer"
+                        style="color: var(--color-link);">https://yiguyfguygtyig.my.canva.site/support-system-64</a></p>
+                <div class="modal-actions">
+                    <button id="supportNoInternetOk" class="modal-button-confirm">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: Intro Sequence Modal -->
+        <div id="introSequenceModal" class="modal hidden" role="dialog" aria-modal="true"
+            aria-labelledby="introSequenceModalTitle">
+            <div class="modal-content">
+                <h3 id="introSequenceModalTitle"></h3>
+                <div id="introSequenceModalBody"></div>
+                <div class="modal-actions" id="introSequenceModalActions">
+                    <!-- Buttons will be added here by JS -->
+                </div>
+            </div>
+        </div>
+        <!-- END NEW -->
+
+    </div> <!-- Closing .container -->
+
+    <button id="supportCreatorButton" title="Support the Creator">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24px" height="24px">
+            <path d="M0 0h24v24H0z" fill="none" />
+            <path
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+        </svg>
+    </button>
+
+
+</body>
+
+</html>
