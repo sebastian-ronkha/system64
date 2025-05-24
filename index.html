@@ -1726,7 +1726,9 @@
         let themeFontLink;
         const ALL_THEMES = ['minimalist', 'cyberpunk', 'matrix', '8bit', 'crt-glow', 'early-web', 'text-terminal'];
 
-        function applyTheme(theme) {
+function applyTheme(theme) {
+            const normalizedTheme = theme.toLowerCase(); // <<< PLACE IT HERE
+
             if (!bodyElement || !themeFontLink) {
                 console.warn("applyTheme called before essential DOM elements (body, themeFontLink) were initialized.");
                 return;
