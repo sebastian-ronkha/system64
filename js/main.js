@@ -1005,7 +1005,7 @@ function initIntroSequence() {
                                     <li>Reset Progress wipes everything (careful!)</li>
                                     <li><span class="red-text">Don't cheat, the system watches</span></li>
                                     <li>Take breaks when needed</li>
-                                    <li>Tap or hold the "64" for theme surprises</li>
+                                    <li>Tap or hold 30 seconds on "64" for theme surprises</li>
                                  </ul>`,
             buttonText: "OK",
             centered: true
