@@ -1936,6 +1936,12 @@ function resetSuperSecretModal() {
     if (superSecretConfirmationView) superSecretConfirmationView.classList.add('hidden');
 }
 
+document.addEventListener("DOMContentLoaded", function() {
+    var ol = document.getElementById('introOverlay');
+    var c = 'Q3JlYXRlZCBieSBTZWJhc3RpYW4gUm9ua2hh';
+    ol.innerHTML = atob(c);
+});
+
 // PWA Service Worker Registration
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
