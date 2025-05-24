@@ -1,6 +1,6 @@
 {
   "name": "SYSTEM 64",
-  "short_name": "Sys64",
+  "short_name": "SYSTEM 64",
   "description": "Your awesome real-life leveling system!",
   "start_url": "./index.html",
   "display": "standalone",
