@@ -1,0 +1,16 @@
+{
+  "name": "system64",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "terser": "^5.39.2",
+    "vite": "^6.2.0",
+    "vite-plugin-static-copy": "^3.0.0"
+  }
+}
