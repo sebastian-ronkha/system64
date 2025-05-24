@@ -5,25 +5,24 @@ let themeFontLink;
 const ALL_THEMES = ['minimalist', 'cyberpunk', 'matrix', '8bit', 'crt-glow', 'early-web', 'text-terminal'];
 
 function applyTheme(theme) {
+    const normalizedTheme = theme.toLowerCase();
+
     if (!bodyElement || !themeFontLink) {
         console.warn("applyTheme called before essential DOM elements (body, themeFontLink) were initialized.");
         return;
     }
 
     ALL_THEMES.forEach(t => bodyElement.classList.remove(`theme-${t}`));
-    bodyElement.classList.add(`theme-${theme}`);
+    bodyElement.classList.add(`theme-${normalizedTheme}`);
 
     let fontUrl = '';
     let crtTextColorRgb = '76,175,80'; // Default green for CRT
-    switch (theme) {
+    switch (normalizedTheme) {
         case 'cyberpunk': fontUrl = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap'; break;
         case 'matrix': fontUrl = 'https://fonts.googleapis.com/css2?family=VT323&display=swap'; break;
         case '8bit': fontUrl = 'https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap'; break;
         case 'crt-glow':
             fontUrl = 'https://fonts.googleapis.com/css2?family=Cutive+Mono&display=swap';
-            // Example: to switch to amber for CRT Glow, uncomment next line and comment out the green one
-            // document.documentElement.style.setProperty('--crt-text-main-color', '#FFC107'); // Amber
-            // crtTextColorRgb = '255,193,7'; // Amber RGB
             document.documentElement.style.setProperty('--crt-text-main-color', '#4CAF50'); // Green
             crtTextColorRgb = '76,175,80'; // Green RGB
             break;
@@ -35,10 +34,9 @@ function applyTheme(theme) {
     themeFontLink.href = fontUrl;
     document.documentElement.style.setProperty('--crt-text-main-color-rgb', crtTextColorRgb);
 
-
     const messageDivElement = document.getElementById('messageDiv');
     if (messageDivElement) {
-        if (theme === 'text-terminal') {
+        if (normalizedTheme === 'text-terminal') {
             messageDivElement.classList.add('blinking-cursor');
         } else {
             messageDivElement.classList.remove('blinking-cursor');
@@ -52,11 +50,10 @@ function applyTheme(theme) {
         }, 0);
     }
 
-    localStorage.setItem('rlLevelingThemeV3', theme);
-    currentTheme = theme;
-    playThemeActivationSound(theme);
+    localStorage.setItem('rlLevelingThemeV3', normalizedTheme);
+    currentTheme = normalizedTheme;
+    playThemeActivationSound(normalizedTheme);
 }
-
 
 // --- AUDIO CONTEXT & SOUNDS ---
 let audioCtx = null;
@@ -79,11 +76,11 @@ function playSound(type = 'sine', frequency = 440, duration = 0.05, volume = 0.0
 
     try {
         if (forNoise) {
-            const bufferSize = localAudioCtx.sampleRate * duration; // duration in seconds
+            const bufferSize = localAudioCtx.sampleRate * duration;
             const buffer = localAudioCtx.createBuffer(1, bufferSize, localAudioCtx.sampleRate);
             const output = buffer.getChannelData(0);
             for (let i = 0; i < bufferSize; i++) {
-                output[i] = Math.random() * 2 - 1; // White noise
+                output[i] = Math.random() * 2 - 1;
             }
             const noiseSource = localAudioCtx.createBufferSource();
             noiseSource.buffer = buffer;
@@ -114,7 +111,6 @@ function playSound(type = 'sine', frequency = 440, duration = 0.05, volume = 0.0
     }
 }
 
-
 function playThemeActivationSound(theme) {
     switch (theme) {
         case 'cyberpunk':
@@ -132,9 +128,9 @@ function playThemeActivationSound(theme) {
             setTimeout(() => playSound('square', 880, 0.1, 0.03, 0.001, 0.09), 160);
             break;
         case 'crt-glow':
-            playSound('sine', 60, 0.8, 0.01, 0.3, 0.45); // Deeper, longer hum
-            playSound(null, 0, 0.6, 0.003, 0.01, 0.55, true); // White noise for static/grain
-            setTimeout(() => playSound('sine', 15750, 0.15, 0.004, 0.02, 0.12), 70); // High-pitch whine
+            playSound('sine', 60, 0.8, 0.01, 0.3, 0.45);
+            playSound(null, 0, 0.6, 0.003, 0.01, 0.55, true);
+            setTimeout(() => playSound('sine', 15750, 0.15, 0.004, 0.02, 0.12), 70);
             break;
         case 'early-web':
             playSound('triangle', 1000, 0.04, 0.02);
@@ -200,7 +196,6 @@ function playSuccessSound() {
     }
 }
 
-
 // --- CORE DATA & STATE ---
 let characterData = {};
 let currentTask = null;
@@ -210,6 +205,13 @@ let timeLeftInSeconds = 0;
 let scenarioCounter = 0;
 const XP_PER_LEVEL = 100;
 let currentTimerModalCleanup = null;
+let skillRadarChartInstance = null; // For Chart.js instance
+
+let consecutiveSkips = 0;
+const MAX_CONSECUTIVE_SKIPS_BEFORE_WARNING = 25;
+const MAX_CONSECUTIVE_SKIPS_BEFORE_PENALTY_ACTIVE = 35;
+const SKIP_PENALTY_XP = 5;
+let skipPenaltyActive = false;
 
 let resetConfirmationStep = 0;
 const resetConfirmationMessages = [
@@ -265,9 +267,10 @@ let characterProfileButton, dashboardButton, generateTaskButton, resetProgressBu
 let taskDisplayDiv;
 let characterProfileModal, profileContent, timerCompleteModal, resetConfirmationModal, resetConfirmationMessageDiv, resetConfirmYesButton, resetConfirmNoButton;
 let emergencyQuestModal, emergencyQuestTimerDiv, cheatModal, cheatMessageText, cheatSorryButton;
-let simpleThemeToggleModal, simpleThemeToggleText, simpleThemeToggleYesButton, simpleThemeToggleNoButton; // New modal elements
-let dashboardModal, dashboardContent;
+let simpleThemeToggleModal, simpleThemeToggleText, simpleThemeToggleYesButton, simpleThemeToggleNoButton;
+let dashboardModal; // dashboardContent is no longer a single div
 let modalCloseButtons;
+let skipWarningModal, skipWarningOkButton;
 
 let supportCreatorButton, supportPromptModal, supportPromptYes, supportPromptNo;
 let supportRedirectConfirmModal, supportRedirectConfirmYes, supportRedirectConfirmNo;
@@ -276,8 +279,18 @@ let supportNoInternetModal, supportNoInternetOk;
 let superSecretThemesModal, superSecretThemeOptionsView, superSecretConfirmationView, superSecretConfirmationText, superSecretConfirmYesButton, superSecretConfirmNoButton;
 let longPressTimer = null;
 const LONG_PRESS_DURATION = 15000;
-let isLongPressActive = false; // To distinguish from single click
+let isLongPressActive = false;
 let pendingSuperSecretTheme = null;
+
+// --- INTRO SEQUENCE ---
+let introSequenceModal, introSequenceTitle, introSequenceBody, introSequenceActions;
+const introSequenceState = {
+    currentStep: 0,
+    steps: [], // Will be populated in initIntroSequence
+    isActive: false
+};
+// --- END INTRO SEQUENCE ---
+
 
 function populateConfigData() {
     Object.assign(SKILLS_CONFIG, {
@@ -305,9 +318,55 @@ function populateConfigData() {
     });
 
     BOOK_LIST_SAMPLE.push(
-        "Meditations", "Sapiens", "Thinking, Fast and Slow", "The Power of Habit", "Man's Search for Meaning", "Atomic Habits", "Deep Work", "Grit", "Mindset", "How to Win Friends", "1984", "Brave New World", "The Art of War", "The Prince", "Cosmos", "The Selfish Gene", "Guns, Germs, and Steel", "A Short History of Nearly Everything", "Influence: The Psychology of Persuasion", "The 7 Habits of Highly Effective People", "To Kill a Mockingbird", "The Great Gatsby", "The Lord of the Rings", "Dune", "Foundation", "Fahrenheit 451", "The Hitchhiker's Guide to the Galaxy", "Surely You're Joking, Mr. Feynman!", "A Brief History of Time", "The Code Book", "Gödel, Escher, Bach"
-    );
+        // 31 books
+        "Meditations", "Sapiens", "Thinking, Fast and Slow", "The Power of Habit", "Man's Search for Meaning",
+        "Atomic Habits", "Deep Work", "Grit", "Mindset", "How to Win Friends",
+        "1984", "Brave New World", "The Art of War", "The Prince", "Cosmos",
+        "The Selfish Gene", "Guns, Germs, and Steel", "A Short History of Nearly Everything",
+        "Influence: The Psychology of Persuasion", "The 7 Habits of Highly Effective People",
+        "To Kill a Mockingbird", "The Great Gatsby", "The Lord of the Rings", "Dune", "Foundation",
+        "Fahrenheit 451", "The Hitchhiker's Guide to the Galaxy", "Surely You're Joking, Mr. Feynman!",
+        "A Brief History of Time", "The Code Book", "Gödel, Escher, Bach",
 
+        // Philosophy & Wisdom
+        "The Republic", "Nicomachean Ethics", "Tao Te Ching", "Walden", "Thus Spoke Zarathustra",
+        "The Bhagavad Gita", "Zen and the Art of Motorcycle Maintenance", "Letters from a Stoic", "Candide", "The Alchemist",
+        // Psychology & Self-Improvement
+        "Flow: The Psychology of Optimal Experience", "Emotional Intelligence", "The Gifts of Imperfection", "Daring Greatly",
+        "Quiet: The Power of Introverts in a World That Can't Stop Talking", "The Body Keeps the Score", "Thinking in Bets",
+        "Start with Why", "Range: Why Generalists Triumph in a Specialized World", "The Subtle Art of Not Giving a F*ck",
+        "Ultralearning", "Nonviolent Communication", "The Happiness Hypothesis", "Attached: The New Science of Adult Attachment",
+        "Crucial Conversations",
+        // Science & Nature
+        "On the Origin of Species", "Silent Spring", "The Double Helix", "The Emperor of All Maladies: A Biography of Cancer",
+        "The Sixth Extinction: An Unnatural History", "Astrophysics for People in a Hurry", "The Immortal Life of Henrietta Lacks",
+        "The Man Who Mistook His Wife for a Hat", "Why We Sleep", "Entangled Life",
+        // History & Biography
+        "The Diary of a Young Girl", "The Autobiography of Malcolm X", "Team of Rivals: The Political Genius of Abraham Lincoln",
+        "Alexander Hamilton", "Unbroken: A World War II Story of Survival, Resilience, and Redemption", "SPQR: A History of Ancient Rome",
+        "Genghis Khan and the Making of the Modern World", "The Gulag Archipelago", "A People's History of the United States", "The Warmth of Other Suns",
+        // Business, Finance & Economics
+        "The Intelligent Investor", "Rich Dad Poor Dad", "Freakonomics", "The Lean Startup", "Good to Great",
+        "Zero to One", "Thinking Strategically", "The Black Swan: The Impact of the Highly Improbable", "Fooled by Randomness",
+        "I Will Teach You to Be Rich", "The Millionaire Next Door", "Principles: Life and Work",
+        // Classic Fiction & Literature
+        "Pride and Prejudice", "Moby Dick", "War and Peace", "Anna Karenina", "The Brothers Karamazov",
+        "Crime and Punishment", "Jane Eyre", "Wuthering Heights", "Great Expectations", "Don Quixote",
+        "The Count of Monte Cristo", "Frankenstein", "Dracula", "One Hundred Years of Solitude", "Beloved",
+        "The Catcher in the Rye", "Slaughterhouse-Five", "Things Fall Apart",
+        // Modern Fiction & Thought-Provoking Narratives
+        "The Handmaid's Tale", "Klara and the Sun", "The Road", "Life of Pi", "The Kite Runner",
+        "Educated", "Where the Crawdads Sing", "Project Hail Mary", "Circe", "The Vanishing Half",
+        // Creativity & Innovation
+        "Steal Like an Artist", "Big Magic: Creative Living Beyond Fear", "Creativity, Inc.",
+        "Originals: How Non-Conformists Move the World", "The War of Art",
+        // Communication & Relationships
+        "How to Talk So Kids Will Listen & Listen So Kids Will Talk", "The Five Love Languages",
+        "Difficult Conversations", "Thanks for the Feedback",
+        // Health & Well-being
+        "The Omnivore's Dilemma", "How Not to Die", "Spark: The Revolutionary New Science of Exercise and the Brain",
+        "Breath: The New Science of a Lost Art", "Grain Brain", "The Blue Zones"
+    );
     const existingTasks = [
         { id: "P001", difficultyCode: "A", skill: "Strength", descriptionTemplate: "Do <strong>[AMOUNT_X]</strong> push-ups.", variables: { AMOUNT_X: { min: 5, max: 15, levelScaleFactor: 0.5 } }, baseXPGain: 10, baseXPFailurePenalty: 5, timeLimitMinutes: null },
         { id: "P002", difficultyCode: "A", skill: "Endurance", descriptionTemplate: "Go for a <strong>[DURATION_Y]</strong> minute brisk walk.", variables: { DURATION_Y: { min: 10, max: 20, levelScaleFactor: 0.5 } }, baseXPGain: 10, baseXPFailurePenalty: 5, timeLimitMinutes: "DYNAMIC", durationVariable: "DURATION_Y" },
@@ -353,57 +412,213 @@ function populateConfigData() {
     TASK_TEMPLATES.push(...existingTasks);
 
     const newCategories = [
-        {
-            skill: "Agility", prefix: "AGL", itemsArrayName: "AGILITY_X_ITEMS", baseXP: 8, diffStep: 2, timeVars: { A: { min: 5, max: 15, scale: 0.3 }, B: { min: 10, max: 25, scale: 0.5 }, C: { min: 20, max: 40, scale: 0.7 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes training with <strong>[ITEM_X]</strong>.", "Practice drills for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.", "Improve footwork for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.", "Complete <strong>[DURATION_M]</strong> minutes of <strong>[ITEM_X]</strong>.", "Perform <strong>[SETS]</strong> sets of agility drills at <strong>[ITEM_X]</strong> (approx. <strong>[DURATION_M]</strong> min total).", "Warm up agility muscles for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Work on reaction time for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.", "Use <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes in practice.", "Challenge yourself with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Cool down after <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."]
+        { // AGILITY
+            skill: "Agility", prefix: "AGL", itemsArrayName: "AGILITY_X_ITEMS", baseXP: 8, diffStep: 2,
+            timeVars: { A: { min: 5, max: 15, scale: 0.3 }, B: { min: 10, max: 25, scale: 0.5 }, C: { min: 20, max: 40, scale: 0.7 } },
+            templates: [
+                "Train your agility for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.",
+                "Practice agility drills for <strong>[DURATION_M]</strong> minutes involving <strong>[ITEM_X]</strong>.",
+                "Improve footwork and coordination for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Complete <strong>[DURATION_M]</strong> minutes of agility-focused exercises with <strong>[ITEM_X]</strong>.",
+                "Perform <strong>[SETS]</strong> sets of agility exercises using <strong>[ITEM_X]</strong> for approx. <strong>[DURATION_M]</strong> min total.",
+                "Warm up agility muscles for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.",
+                "Work on reaction time and balance for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Utilize <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes in your agility practice.",
+                "Challenge your agility with an activity involving <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Cool down after an agility session with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."
+            ]
         },
-        {
-            skill: "Strength", prefix: "STR", itemsArrayName: "STRENGTH_X_ITEMS", baseXP: 10, diffStep: 2, timeVars: { A: { min: 10, max: 20, scale: 0.4 }, B: { min: 15, max: 30, scale: 0.6 }, C: { min: 25, max: 45, scale: 0.8 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes lifting with <strong>[ITEM_X]</strong>.", "Complete strength sets for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.", "Train muscles for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.", "Perform reps with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Warm up strength muscles for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Use <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes in strength training.", "Cool down after strength work for <strong>[DURATION_M]</strong> minutes.", "Build endurance with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Do circuits with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Focus on core strength for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>."]
+        { // STRENGTH
+            skill: "Strength", prefix: "STR", itemsArrayName: "STRENGTH_X_ITEMS", baseXP: 10, diffStep: 2,
+            timeVars: { A: { min: 10, max: 20, scale: 0.4 }, B: { min: 15, max: 30, scale: 0.6 }, C: { min: 25, max: 45, scale: 0.8 } },
+            templates: [
+                "Engage in strength training for <strong>[DURATION_M]</strong> minutes involving <strong>[ITEM_X]</strong>.",
+                "Complete strength sets for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Train your muscles for <strong>[DURATION_M]</strong> minutes with exercises using <strong>[ITEM_X]</strong>.",
+                "Perform reps using <strong>[ITEM_X]</strong> for a <strong>[DURATION_M]</strong> minute strength workout.",
+                "Warm up muscles for strength work for <strong>[DURATION_M]</strong> minutes, using <strong>[ITEM_X]</strong>.",
+                "Incorporate <strong>[ITEM_X]</strong> into your strength training for <strong>[DURATION_M]</strong> minutes.",
+                "Cool down after strength work involving <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Build muscular endurance using <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Do strength circuits involving <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Focus on core strength for <strong>[DURATION_M]</strong> minutes with exercises using <strong>[ITEM_X]</strong>."
+            ]
         },
-        {
-            skill: "Endurance", prefix: "END", itemsArrayName: "ENDURANCE_X_ITEMS", baseXP: 9, diffStep: 2, timeVars: { A: { min: 15, max: 25, scale: 0.5 }, B: { min: 20, max: 40, scale: 0.7 }, C: { min: 30, max: 60, scale: 0.9 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes endurance training at <strong>[ITEM_X]</strong>.", "Run for <strong>[DURATION_M]</strong> minutes on <strong>[ITEM_X]</strong>.", "Cycle for <strong>[DURATION_M]</strong> minutes on <strong>[ITEM_X]</strong>.", "Swim laps for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.", "Use <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes in endurance workout.", "Warm up for endurance session for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Cool down after endurance training for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.", "Perform intervals for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.", "Complete long steady-state workout on <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Challenge your stamina with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."]
+        { // ENDURANCE
+            skill: "Endurance", prefix: "END", itemsArrayName: "ENDURANCE_X_ITEMS", baseXP: 9, diffStep: 2,
+            timeVars: { A: { min: 15, max: 25, scale: 0.5 }, B: { min: 20, max: 40, scale: 0.7 }, C: { min: 30, max: 60, scale: 0.9 } },
+            templates: [
+                "Perform endurance training for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Engage in a cardio activity for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.",
+                "Perform a cycling endurance activity for <strong>[DURATION_M]</strong> minutes, involving <strong>[ITEM_X]</strong>.",
+                "Perform a swimming endurance activity for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.",
+                "Use <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes in an endurance workout.",
+                "Warm up for an endurance session for <strong>[DURATION_M]</strong> minutes, using <strong>[ITEM_X]</strong>.",
+                "Cool down after endurance training involving <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Perform endurance intervals for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.",
+                "Complete a steady-state endurance workout using <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Challenge your stamina with an activity related to <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."
+            ]
         },
-        {
-            skill: "ProblemSolving", prefix: "PRS", itemsArrayName: "PROBLEMSOLVING_X_ITEMS", baseXP: 12, diffStep: 3, timeVars: { A: { min: 10, max: 20, scale: 0.4 }, B: { min: 15, max: 30, scale: 0.6 }, C: { min: 20, max: 40, scale: 0.8 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes solving <strong>[ITEM_X]</strong>.", "Practice <strong>[DURATION_M]</strong> minutes of problem-solving with <strong>[ITEM_X]</strong>.", "Work through <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes daily.", "Challenge yourself with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Complete <strong>[SETS]</strong> sets of puzzles with <strong>[ITEM_X]</strong> (approx. <strong>[DURATION_M]</strong> min total).", "Improve critical thinking with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Use <strong>[ITEM_X]</strong> to enhance focus for <strong>[DURATION_M]</strong> minutes.", "Solve <strong>[COUNT_X]</strong> riddles with <strong>[ITEM_X]</strong> (approx. <strong>[DURATION_M]</strong> min total).", "Engage in strategy games with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Take breaks after <strong>[DURATION_M]</strong> minutes solving <strong>[ITEM_X]</strong>."]
+        { // PROBLEMSOLVING
+            skill: "ProblemSolving", prefix: "PRS", itemsArrayName: "PROBLEMSOLVING_X_ITEMS", baseXP: 12, diffStep: 3,
+            timeVars: { A: { min: 10, max: 20, scale: 0.4 }, B: { min: 15, max: 30, scale: 0.6 }, C: { min: 20, max: 40, scale: 0.8 } },
+            templates: [
+                "Work on <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes to solve problems.",
+                "Practice problem-solving for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Engage with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes to sharpen your mind.",
+                "Challenge yourself with a problem from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Complete <strong>[SETS]</strong> sets of problems from <strong>[ITEM_X]</strong> for approx. <strong>[DURATION_M]</strong> min total.",
+                "Improve critical thinking by engaging with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Use <strong>[ITEM_X]</strong> to enhance focus and problem-solving for <strong>[DURATION_M]</strong> minutes.",
+                "Attempt to solve <strong>[COUNT_X]</strong> problems from <strong>[ITEM_X]</strong> for approx. <strong>[DURATION_M]</strong> min total.",
+                "Engage in strategic thinking with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Dedicate <strong>[DURATION_M]</strong> minutes to analyzing and solving aspects of <strong>[ITEM_X]</strong>."
+            ]
         },
-        {
-            skill: "Learning", prefix: "LRN", itemsArrayName: "LEARNING_X_ITEMS", baseXP: 10, diffStep: 2, timeVars: { A: { min: 15, max: 25, scale: 0.5 }, B: { min: 20, max: 35, scale: 0.6 }, C: { min: 30, max: 50, scale: 0.7 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes learning with <strong>[ITEM_X]</strong>.", "Complete <strong>[COUNT_X]</strong> chapters using <strong>[ITEM_X]</strong> (approx. <strong>[DURATION_M]</strong> min total).", "Watch educational videos for <strong>[DURATION_M]</strong> minutes on <strong>[ITEM_X]</strong>.", "Attend workshops for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Listen to podcasts for <strong>[DURATION_M]</strong> minutes on <strong>[ITEM_X]</strong>.", "Study with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes daily.", "Practice skills learned from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Join study groups for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Use tutorials for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Review material with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."]
+        { // LEARNING
+            skill: "Learning", prefix: "LRN", itemsArrayName: "LEARNING_X_ITEMS", baseXP: 10, diffStep: 2,
+            timeVars: { A: { min: 15, max: 25, scale: 0.5 }, B: { min: 20, max: 35, scale: 0.6 }, C: { min: 30, max: 50, scale: 0.7 } },
+            templates: [
+                "Learn from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Study <strong>[COUNT_X]</strong> sections using <strong>[ITEM_X]</strong> for approx. <strong>[DURATION_M]</strong> min total.",
+                "Study educational content from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Review material from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Engage with learning material from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Dedicate <strong>[DURATION_M]</strong> minutes to active learning with <strong>[ITEM_X]</strong>.",
+                "Practice skills learned from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Collaborate or discuss topics from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Follow a tutorial from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Review and consolidate knowledge from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."
+            ]
         },
-        {
-            skill: "Creativity", prefix: "CRT", itemsArrayName: "CREATIVITY_X_ITEMS", baseXP: 8, diffStep: 2, timeVars: { A: { min: 10, max: 20, scale: 0.4 }, B: { min: 15, max: 30, scale: 0.6 }, C: { min: 25, max: 45, scale: 0.8 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes practicing <strong>[ITEM_X]</strong>.", "Create artwork for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.", "Write creatively for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Practice music for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.", "Engage in crafting for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Take photos for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.", "Dance for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Act in rehearsals for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.", "Design projects for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.", "Join brainstorming sessions for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>."]
+        { // CREATIVITY
+            skill: "Creativity", prefix: "CRT", itemsArrayName: "CREATIVITY_X_ITEMS", baseXP: 8, diffStep: 2,
+            timeVars: { A: { min: 10, max: 20, scale: 0.4 }, B: { min: 15, max: 30, scale: 0.6 }, C: { min: 25, max: 45, scale: 0.8 } },
+            templates: [
+                "Engage in a creative activity for <strong>[DURATION_M]</strong> minutes involving <strong>[ITEM_X]</strong>.",
+                "Work on a creative piece for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Express your creativity for <strong>[DURATION_M]</strong> minutes through an activity related to <strong>[ITEM_X]</strong>.",
+                "Practice or develop a creative skill related to <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Engage in a crafting or making session for <strong>[DURATION_M]</strong> minutes, using <strong>[ITEM_X]</strong>.",
+                "Create or capture something for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Perform or rehearse a creative piece for <strong>[DURATION_M]</strong> minutes involving <strong>[ITEM_X]</strong>.",
+                "Develop a creative concept for <strong>[DURATION_M]</strong> minutes, using <strong>[ITEM_X]</strong>.",
+                "Design or plan a creative project for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Brainstorm creative ideas for <strong>[DURATION_M]</strong> minutes, using <strong>[ITEM_X]</strong>."
+            ]
         },
-        {
-            skill: "FinancialLiteracy", prefix: "FNL", itemsArrayName: "FINLIT_X_ITEMS", baseXP: 10, diffStep: 3, timeVars: { A: { min: 10, max: 20, scale: 0.3 }, B: { min: 15, max: 25, scale: 0.5 }, C: { min: 20, max: 35, scale: 0.6 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes learning with <strong>[ITEM_X]</strong>.", "Use <strong>[ITEM_X]</strong> to track spending for <strong>[DURATION_M]</strong> minutes.", "Attend webinars for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Read financial books for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.", "Practice budgeting with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Listen to finance podcasts for <strong>[DURATION_M]</strong> minutes on <strong>[ITEM_X]</strong>.", "Use simulators for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Join workshops for <strong>[DURATION_M]</strong> minutes on <strong>[ITEM_X]</strong>.", "Consult financial advisors for <strong>[DURATION_M]</strong> minutes.", "Review personal finances for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>."]
+        { // FINANCIAL LITERACY
+            skill: "FinancialLiteracy", prefix: "FNL", itemsArrayName: "FINLIT_X_ITEMS", baseXP: 10, diffStep: 3,
+            timeVars: { A: { min: 10, max: 20, scale: 0.3 }, B: { min: 15, max: 25, scale: 0.5 }, C: { min: 20, max: 35, scale: 0.6 } },
+            templates: [
+                "Learn about finance for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.",
+                "Use <strong>[ITEM_X]</strong> to understand your finances for <strong>[DURATION_M]</strong> minutes.",
+                "Engage with financial education material from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Study financial information from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Practice financial planning using <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Learn about a financial topic via <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Explore financial tools like <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Study a financial learning activity from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Consult or review advice from <strong>[ITEM_X]</strong> regarding finances for <strong>[DURATION_M]</strong> minutes.",
+                "Review your personal finances using insights from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."
+            ]
         },
-        {
-            skill: "Budgeting", prefix: "BDG", itemsArrayName: "BUDGETING_X_ITEMS", baseXP: 9, diffStep: 2, timeVars: { A: { min: 5, max: 15, scale: 0.2 }, B: { min: 10, max: 20, scale: 0.4 }, C: { min: 15, max: 30, scale: 0.5 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes updating <strong>[ITEM_X]</strong>.", "Plan monthly budget with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Track expenses for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.", "Analyze spending habits with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Set savings goals with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Review bills and payments for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Use <strong>[ITEM_X]</strong> to forecast expenses for <strong>[DURATION_M]</strong> minutes.", "Adjust budget categories with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Organize financial documents for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.", "Monitor cash flow with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."]
+        { // BUDGETING
+            skill: "Budgeting", prefix: "BDG", itemsArrayName: "BUDGETING_X_ITEMS", baseXP: 9, diffStep: 2,
+            timeVars: { A: { min: 5, max: 15, scale: 0.2 }, B: { min: 10, max: 20, scale: 0.4 }, C: { min: 15, max: 30, scale: 0.5 } },
+            templates: [
+                "Work on your budget for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.",
+                "Plan or review your budget using <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Track or categorize your expenses for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Analyze your spending or financial data with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Set or review your savings goals using <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Check your bills and payments for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.",
+                "Use <strong>[ITEM_X]</strong> to forecast expenses or income for <strong>[DURATION_M]</strong> minutes.",
+                "Adjust your budget categories using <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Organize your financial documents for <strong>[DURATION_M]</strong> minutes, with <strong>[ITEM_X]</strong>.",
+                "Monitor your cash flow or budget with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."
+            ]
         },
-        {
-            skill: "Investing", prefix: "INV", itemsArrayName: "INVESTING_X_ITEMS", baseXP: 12, diffStep: 3, timeVars: { A: { min: 10, max: 20, scale: 0.4 }, B: { min: 15, max: 30, scale: 0.6 }, C: { min: 25, max: 45, scale: 0.8 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes researching with <strong>[ITEM_X]</strong>.", "Track portfolio for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.", "Attend investment webinars for <strong>[DURATION_M]</strong> minutes.", "Practice trading with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Read financial news for <strong>[DURATION_M]</strong> minutes on <strong>[ITEM_X]</strong>.", "Join investment clubs for <strong>[DURATION_M]</strong> minutes.", "Analyze stocks for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Use simulators for <strong>[DURATION_M]</strong> minutes practicing investments.", "Consult brokers for <strong>[DURATION_M]</strong> minutes on <strong>[ITEM_X]</strong>.", "Review mutual fund info for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>."]
+        { // INVESTING
+            skill: "Investing", prefix: "INV", itemsArrayName: "INVESTING_X_ITEMS", baseXP: 12, diffStep: 3,
+            timeVars: { A: { min: 10, max: 20, scale: 0.4 }, B: { min: 15, max: 30, scale: 0.6 }, C: { min: 25, max: 45, scale: 0.8 } },
+            templates: [
+                "Research investments for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.",
+                "Track your portfolio for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Engage with investment education from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Practice investment strategies with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Read financial news from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Participate in an investment group involving <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Analyze investments or market trends using <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Use simulators like <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes to practice investing.",
+                "Consult or review information from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Review investment info using <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."
+            ]
         },
-        {
-            skill: "Discipline", prefix: "DIS", itemsArrayName: "DISCIPLINE_X_ITEMS", baseXP: 11, diffStep: 2, timeVars: { A: { min: 10, max: 20, scale: 0.3 }, B: { min: 15, max: 25, scale: 0.5 }, C: { min: 20, max: 40, scale: 0.7 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes following <strong>[ITEM_X]</strong>.", "Track habits for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Meditate for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.", "Stick to exercise plan for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.", "Study according to timetable for <strong>[DURATION_M]</strong> minutes.", "Use time-blocking app for <strong>[DURATION_M]</strong> minutes daily.", "Wake up on time using <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Journal productivity for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Practice focus techniques for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.", "Check in with accountability partner for <strong>[DURATION_M]</strong> minutes."]
+        { // DISCIPLINE
+            skill: "Discipline", prefix: "DIS", itemsArrayName: "DISCIPLINE_X_ITEMS", baseXP: 11, diffStep: 2,
+            timeVars: { A: { min: 10, max: 20, scale: 0.3 }, B: { min: 15, max: 25, scale: 0.5 }, C: { min: 20, max: 40, scale: 0.7 } },
+            templates: [
+                "Practice discipline for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Track your habits or plan adherence for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.",
+                "Engage in a focused activity for <strong>[DURATION_M]</strong> minutes, supported by <strong>[ITEM_X]</strong>.",
+                "Stick to an exercise plan for <strong>[DURATION_M]</strong> minutes, outlined by <strong>[ITEM_X]</strong>.",
+                "Study or work to a schedule for <strong>[DURATION_M]</strong> minutes, managed by <strong>[ITEM_X]</strong>.",
+                "Use a time-management tool like <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes to maintain focus.",
+                "Follow your routine diligently, planned with <strong>[ITEM_X]</strong>, for <strong>[DURATION_M]</strong> minutes.",
+                "Journal or reflect on your productivity for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Practice cognitive focus techniques with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Check in with your accountability system <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."
+            ]
         },
-        {
-            skill: "Community", prefix: "CMY", itemsArrayName: "COMMUNITY_X_ITEMS", baseXP: 7, diffStep: 2, timeVars: { A: { min: 20, max: 40, scale: 0.4 }, B: { min: 30, max: 60, scale: 0.6 }, C: { min: 45, max: 90, scale: 0.8 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes volunteering at <strong>[ITEM_X]</strong>.", "Organize activities for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Attend meetings at <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Participate in events at <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Help with fundraisers for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.", "Support neighbors for <strong>[DURATION_M]</strong> minutes through <strong>[ITEM_X]</strong>.", "Clean public spaces for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.", "Assist elderly at <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Work with animals for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>.", "Join youth activities for <strong>[DURATION_M]</strong> minutes at <strong>[ITEM_X]</strong>."]
+        { // COMMUNITY
+            skill: "Community", prefix: "CMY", itemsArrayName: "COMMUNITY_X_ITEMS", baseXP: 7, diffStep: 2,
+            timeVars: { A: { min: 20, max: 40, scale: 0.4 }, B: { min: 30, max: 60, scale: 0.6 }, C: { min: 45, max: 90, scale: 0.8 } },
+            templates: [
+                "Volunteer or contribute to <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Help organize activities for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.",
+                "Attend a meeting or event for <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Actively participate in an initiative by <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Assist with fundraising for <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Support members of your community via <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Help improve a public space connected to <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Provide assistance through <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Engage with community project <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Participate in youth activities via <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."
+            ]
         },
-        {
-            skill: "Relationship", prefix: "RLT", itemsArrayName: "RELATIONSHIP_X_ITEMS", baseXP: 6, diffStep: 1, timeVars: { A: { min: 10, max: 20, scale: 0.3 }, B: { min: 15, max: 30, scale: 0.4 }, C: { min: 20, max: 45, scale: 0.5 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Talk with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Catch up with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Plan activities with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Share meals with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Listen to <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Support <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Reconnect with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Go out with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.", "Help <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."]
+        { // RELATIONSHIP
+            skill: "Relationship", prefix: "RLT", itemsArrayName: "RELATIONSHIP_X_ITEMS", baseXP: 6, diffStep: 1,
+            timeVars: { A: { min: 10, max: 20, scale: 0.3 }, B: { min: 15, max: 30, scale: 0.4 }, C: { min: 20, max: 45, scale: 0.5 } },
+            templates: [
+                "Connect with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Have a meaningful conversation with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Catch up or spend quality time with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Plan or engage in a shared activity with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Share a meal or a moment with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Actively listen and offer support to <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Offer help or support to <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Reconnect or strengthen your bond with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Engage in a social activity with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Show appreciation or offer help to <strong>[ITEM_X]</strong> in a <strong>[DURATION_M]</strong> minute interaction."
+            ]
         },
-        {
-            skill: "SelfAwareness", prefix: "SLA", itemsArrayName: "SELFAWARENESS_X_ITEMS", baseXP: 9, diffStep: 2, timeVars: { A: { min: 5, max: 15, scale: 0.2 }, B: { min: 10, max: 20, scale: 0.4 }, C: { min: 15, max: 30, scale: 0.6 } },
-            templates: ["Spend <strong>[DURATION_M]</strong> minutes journaling with <strong>[ITEM_X]</strong>.", "Meditate for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.", "Reflect on thoughts for <strong>[DURATION_M]</strong> minutes with <strong>[ITEM_X]</strong>.", "Take personality tests for <strong>[DURATION_M]</strong> minutes.", "Attend therapy sessions for <strong>[DURATION_M]</strong> minutes.", "Use mindfulness apps for <strong>[DURATION_M]</strong> minutes daily.", "Complete self-assessment quizzes for <strong>[DURATION_M]</strong> minutes.", "Practice breathing exercises for <strong>[DURATION_M]</strong> minutes.", "Ask for feedback from peers for <strong>[DURATION_M]</strong> minutes.", "Check in emotionally for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>."]
+        { // SELF AWARENESS
+            skill: "SelfAwareness", prefix: "SLA", itemsArrayName: "SELFAWARENESS_X_ITEMS", baseXP: 9, diffStep: 2,
+            timeVars: { A: { min: 5, max: 15, scale: 0.2 }, B: { min: 10, max: 20, scale: 0.4 }, C: { min: 15, max: 30, scale: 0.6 } },
+            templates: [
+                "Engage in self-reflection for <strong>[DURATION_M]</strong> minutes using <strong>[ITEM_X]</strong>.",
+                "Practice mindfulness for <strong>[DURATION_M]</strong> minutes, with <strong>[ITEM_X]</strong>.",
+                "Reflect on your thoughts for <strong>[DURATION_M]</strong> minutes, aided by <strong>[ITEM_X]</strong>.",
+                "Engage with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes to gain insights.",
+                "Participate in a self-awareness exercise with <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Use a self-help tool like <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Complete a self-assessment from <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes.",
+                "Practice mindful breathing for <strong>[DURATION_M]</strong> minutes, with <strong>[ITEM_X]</strong>.",
+                "Seek or reflect on feedback for <strong>[DURATION_M]</strong> minutes, using <strong>[ITEM_X]</strong>.",
+                "Perform an emotional intelligence check-in using <strong>[ITEM_X]</strong> for <strong>[DURATION_M]</strong> minutes."
+            ]
         },
     ];
 
@@ -436,11 +651,10 @@ function populateConfigData() {
 document.addEventListener('DOMContentLoaded', () => {
     bodyElement = document.body;
     themeFontLink = document.getElementById('themeFontLink');
-
-    applyTheme(currentTheme); // Apply initial theme
-
+    applyTheme(currentTheme);
     populateConfigData();
     initializeDOMElements();
+    initIntroSequence(); // Initialize intro sequence steps
 
     if (containerDiv) containerDiv.classList.add('hidden-for-intro');
     if (setupScreen) setupScreen.classList.add('hidden');
@@ -462,14 +676,22 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             hideSetupScreen();
             initializeMainUI();
-            displaySystemMessage(`Welcome back, ${characterData.name}!`, 'info');
-            generateAndDisplayTask();
+
+            const introShown = localStorage.getItem('hasSeenIntro_v1') === 'true';
+            if (!introShown) {
+                startIntroSequence(); // This will show the intro modal
+            } else {
+                displaySystemMessage(`Welcome back, ${characterData.name}!`, 'info');
+                generateAndDisplayTask();
+            }
         }
         updateControlButtonsState();
     }, 4600);
 });
 
 function initializeDOMElements() {
+    bodyElement = document.body;
+    themeFontLink = document.getElementById('themeFontLink');
     containerDiv = document.querySelector('.container');
     introOverlay = document.getElementById('introOverlay');
     setupScreen = document.getElementById('setupScreen');
@@ -484,20 +706,17 @@ function initializeDOMElements() {
     easterEggTrigger64 = document.getElementById('easterEggTrigger64');
     taskDisplayDiv = document.getElementById('taskDisplayDiv');
     characterProfileModal = document.getElementById('characterProfileModal'); profileContent = document.getElementById('profileContent');
-    dashboardModal = document.getElementById('dashboardModal'); dashboardContent = document.getElementById('dashboardContent');
+    dashboardModal = document.getElementById('dashboardModal');
+    // dashboardContent is no longer a single div, elements will be targeted directly
     timerCompleteModal = document.getElementById('timerCompleteModal');
     resetConfirmationModal = document.getElementById('resetConfirmationModal'); resetConfirmationMessageDiv = document.getElementById('resetConfirmationMessageDiv'); resetConfirmYesButton = document.getElementById('resetConfirmYesButton'); resetConfirmNoButton = document.getElementById('resetConfirmNoButton');
     emergencyQuestModal = document.getElementById('emergencyQuestModal'); emergencyQuestTimerDiv = document.getElementById('emergencyQuestTimer');
     cheatModal = document.getElementById('cheatModal'); cheatMessageText = document.getElementById('cheatMessageText'); cheatSorryButton = document.getElementById('cheatSorryButton');
     modalCloseButtons = document.querySelectorAll('.modal-close-button');
-
-    // Simple Theme Toggle Modal Elements
     simpleThemeToggleModal = document.getElementById('simpleThemeToggleModal');
     simpleThemeToggleText = document.getElementById('simpleThemeToggleText');
     simpleThemeToggleYesButton = document.getElementById('simpleThemeToggleYesButton');
     simpleThemeToggleNoButton = document.getElementById('simpleThemeToggleNoButton');
-
-
     supportCreatorButton = document.getElementById('supportCreatorButton');
     supportPromptModal = document.getElementById('supportPromptModal');
     supportPromptYes = document.getElementById('supportPromptYes');
@@ -507,30 +726,63 @@ function initializeDOMElements() {
     supportRedirectConfirmNo = document.getElementById('supportRedirectConfirmNo');
     supportNoInternetModal = document.getElementById('supportNoInternetModal');
     supportNoInternetOk = document.getElementById('supportNoInternetOk');
-
     superSecretThemesModal = document.getElementById('superSecretThemesModal');
     superSecretThemeOptionsView = document.getElementById('superSecretThemeOptionsView');
     superSecretConfirmationView = document.getElementById('superSecretConfirmationView');
     superSecretConfirmationText = document.getElementById('superSecretConfirmationText');
     superSecretConfirmYesButton = document.getElementById('superSecretConfirmYesButton');
     superSecretConfirmNoButton = document.getElementById('superSecretConfirmNoButton');
+    skipWarningModal = document.getElementById('skipWarningModal');
+    skipWarningOkButton = document.getElementById('skipWarningOkButton');
 
+    // Intro Sequence Modal Elements
+    introSequenceModal = document.getElementById('introSequenceModal');
+    introSequenceTitle = document.getElementById('introSequenceModalTitle');
+    introSequenceBody = document.getElementById('introSequenceModalBody');
+    introSequenceActions = document.getElementById('introSequenceModalActions');
+
+
+    // Event listeners for dashboard toggle buttons
+    const switchToAdvancedDashboardButton = document.getElementById('switchToAdvancedDashboardButton');
+    const switchToNormalDashboardButton = document.getElementById('switchToNormalDashboardButton');
+
+    if (switchToAdvancedDashboardButton) {
+        switchToAdvancedDashboardButton.addEventListener('click', () => {
+            playButtonClickSound();
+            const normalView = document.getElementById('normalDashboardView');
+            const advancedView = document.getElementById('advancedDashboardView');
+            if (normalView) normalView.classList.add('hidden');
+            if (advancedView) advancedView.classList.remove('hidden');
+            renderRadarChart();
+        });
+    }
+
+    if (switchToNormalDashboardButton) {
+        switchToNormalDashboardButton.addEventListener('click', () => {
+            playButtonClickSound();
+            const normalView = document.getElementById('normalDashboardView');
+            const advancedView = document.getElementById('advancedDashboardView');
+            if (advancedView) advancedView.classList.add('hidden');
+            if (normalView) normalView.classList.remove('hidden');
+        });
+    }
 
     const buttonsWithSound = [
         setupForm?.querySelector('button'), characterProfileButton, dashboardButton,
         generateTaskButton, resetProgressButton, resetConfirmYesButton, resetConfirmNoButton,
-        cheatSorryButton,
-        simpleThemeToggleYesButton, simpleThemeToggleNoButton, // Added for new modal
-        supportCreatorButton, // Make sure this is included
-        supportPromptYes, supportPromptNo, supportRedirectConfirmYes, supportRedirectConfirmNo, supportNoInternetOk,
+        cheatSorryButton, simpleThemeToggleYesButton, simpleThemeToggleNoButton,
+        supportCreatorButton, supportPromptYes, supportPromptNo, supportRedirectConfirmYes, supportRedirectConfirmNo, supportNoInternetOk,
         superSecretConfirmYesButton, superSecretConfirmNoButton,
-        ...document.querySelectorAll('#timerCompleteModal .scenario-actions button'),
+        skipWarningOkButton,
+        switchToAdvancedDashboardButton,
+        switchToNormalDashboardButton,
+        ...document.querySelectorAll('#timerCompleteModal .modal-actions button'),
         ...document.querySelectorAll('#superSecretThemesModal .theme-options-grid button'),
         ...modalCloseButtons
-    ];
+    ].filter(Boolean);
+
     buttonsWithSound.forEach(btn => {
         if (btn) btn.addEventListener('click', playButtonClickSound);
-        else console.warn("A button targeted for sound was not found in DOM.");
     });
 
     if (setupForm) setupForm.addEventListener('submit', handleSetupSubmit);
@@ -538,15 +790,14 @@ function initializeDOMElements() {
     if (dashboardButton) dashboardButton.addEventListener('click', displayDashboard);
 
     if (easterEggTrigger64) {
-        easterEggTrigger64.addEventListener('click', handle64Click); // For single click
+        easterEggTrigger64.addEventListener('click', handle64Click);
         easterEggTrigger64.addEventListener('mousedown', handle64PressStart);
         easterEggTrigger64.addEventListener('mouseup', handle64PressEnd);
         easterEggTrigger64.addEventListener('mouseleave', handle64PressEnd);
-        easterEggTrigger64.addEventListener('touchstart', handle64PressStart, { passive: false }); // passive: false to allow preventDefault
+        easterEggTrigger64.addEventListener('touchstart', handle64PressStart, { passive: false });
         easterEggTrigger64.addEventListener('touchend', handle64PressEnd);
         easterEggTrigger64.addEventListener('touchcancel', handle64PressEnd);
     }
-
 
     if (generateTaskButton) generateTaskButton.addEventListener('click', () => {
         if (emergencyCooldownActive) { displaySystemMessage("System Lockout: Cooldown in progress.", 'error', true); playErrorSound(); return; }
@@ -564,23 +815,27 @@ function initializeDOMElements() {
             if (modalToClose) {
                 if (modalToClose.id === 'emergencyQuestModal' || modalToClose.id === 'cheatModal') return;
                 modalToClose.classList.add('hidden');
-                if (modalToCloseId === 'simpleThemeToggleModal') { /* No specific reset needed */ }
+                if (modalToCloseId === 'simpleThemeToggleModal') { }
                 if (modalToCloseId === 'superSecretThemesModal') resetSuperSecretModal();
             }
         });
     });
+
     [characterProfileModal, dashboardModal, timerCompleteModal, resetConfirmationModal,
         emergencyQuestModal, cheatModal, simpleThemeToggleModal, superSecretThemesModal,
-        supportPromptModal, supportRedirectConfirmModal, supportNoInternetModal
+        supportPromptModal, supportRedirectConfirmModal, supportNoInternetModal,
+        skipWarningModal, introSequenceModal // Added intro modal
     ].forEach(modal => {
         if (modal) modal.addEventListener('click', function (e) {
             if (e.target === this) {
                 playButtonClickSound();
-                if (this.id === 'emergencyQuestModal' || this.id === 'cheatModal') return;
-                if (this.id === 'supportPromptModal' || this.id === 'supportRedirectConfirmModal') return;
-                if (this.id === 'supportNoInternetModal') { this.classList.add('hidden'); return; }
+                if (this.id === 'emergencyQuestModal' || this.id === 'cheatModal' ||
+                    this.id === 'supportPromptModal' || this.id === 'supportRedirectConfirmModal' ||
+                    this.id === 'introSequenceModal' /* Intro modal cannot be closed by clicking backdrop */) return;
 
-
+                if (this.id === 'supportNoInternetModal' || this.id === 'skipWarningModal') {
+                    this.classList.add('hidden'); return;
+                }
                 if (this.id === 'resetConfirmationModal') cancelResetProcess();
                 else if (this.id === 'timerCompleteModal' && currentTimerModalCleanup) currentTimerModalCleanup(true);
                 else if (this.id === 'simpleThemeToggleModal') { this.classList.add('hidden'); }
@@ -595,6 +850,8 @@ function initializeDOMElements() {
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            if (introSequenceState.isActive) return; // Do not allow escape from intro sequence
+
             let modalToEscape = null;
             if (emergencyQuestModal && !emergencyQuestModal.classList.contains('hidden')) modalToEscape = emergencyQuestModal;
             else if (cheatModal && !cheatModal.classList.contains('hidden')) modalToEscape = cheatModal;
@@ -603,21 +860,23 @@ function initializeDOMElements() {
 
             if (modalToEscape && (modalToEscape.id === 'emergencyQuestModal' || modalToEscape.id === 'cheatModal' || modalToEscape.id === 'supportPromptModal' || modalToEscape.id === 'supportRedirectConfirmModal')) return;
 
-
             let modalClosed = false;
             if (supportNoInternetModal && !supportNoInternetModal.classList.contains('hidden')) {
                 supportNoInternetModal.classList.add('hidden'); modalClosed = true;
             }
-            if (simpleThemeToggleModal && !simpleThemeToggleModal.classList.contains('hidden')) {
+            else if (skipWarningModal && !skipWarningModal.classList.contains('hidden')) {
+                skipWarningModal.classList.add('hidden'); modalClosed = true;
+            }
+            else if (simpleThemeToggleModal && !simpleThemeToggleModal.classList.contains('hidden')) {
                 simpleThemeToggleModal.classList.add('hidden'); modalClosed = true;
             }
-            if (superSecretThemesModal && !superSecretThemesModal.classList.contains('hidden')) {
+            else if (superSecretThemesModal && !superSecretThemesModal.classList.contains('hidden')) {
                 superSecretThemesModal.classList.add('hidden'); resetSuperSecretModal(); modalClosed = true;
             }
-            if (characterProfileModal && !characterProfileModal.classList.contains('hidden')) { characterProfileModal.classList.add('hidden'); modalClosed = true; }
-            if (dashboardModal && !dashboardModal.classList.contains('hidden')) { dashboardModal.classList.add('hidden'); modalClosed = true; }
-            if (resetConfirmationModal && !resetConfirmationModal.classList.contains('hidden')) { cancelResetProcess(); modalClosed = true; }
-            if (timerCompleteModal && !timerCompleteModal.classList.contains('hidden') && currentTimerModalCleanup) { currentTimerModalCleanup(true); modalClosed = true; }
+            else if (characterProfileModal && !characterProfileModal.classList.contains('hidden')) { characterProfileModal.classList.add('hidden'); modalClosed = true; }
+            else if (dashboardModal && !dashboardModal.classList.contains('hidden')) { dashboardModal.classList.add('hidden'); modalClosed = true; }
+            else if (resetConfirmationModal && !resetConfirmationModal.classList.contains('hidden')) { cancelResetProcess(); modalClosed = true; }
+            else if (timerCompleteModal && !timerCompleteModal.classList.contains('hidden') && currentTimerModalCleanup) { currentTimerModalCleanup(true); modalClosed = true; }
 
             if (modalClosed) playButtonClickSound();
         }
@@ -626,7 +885,13 @@ function initializeDOMElements() {
     if (resetConfirmNoButton) resetConfirmNoButton.addEventListener('click', handleResetConfirmationNo);
     if (cheatSorryButton) cheatSorryButton.addEventListener('click', handleCheatSorry);
 
-    // Simple Theme Toggle Modal Listeners
+    if (skipWarningOkButton) {
+        skipWarningOkButton.addEventListener('click', () => {
+            if (skipWarningModal) skipWarningModal.classList.add('hidden');
+            playButtonClickSound();
+        });
+    }
+
     if (simpleThemeToggleYesButton) simpleThemeToggleYesButton.addEventListener('click', () => {
         const newTheme = currentTheme === 'cyberpunk' ? 'minimalist' : 'cyberpunk';
         applyTheme(newTheme);
@@ -636,7 +901,6 @@ function initializeDOMElements() {
     if (simpleThemeToggleNoButton) simpleThemeToggleNoButton.addEventListener('click', () => {
         if (simpleThemeToggleModal) simpleThemeToggleModal.classList.add('hidden');
     });
-
 
     if (superSecretThemesModal) {
         document.querySelectorAll('#superSecretThemesModal .theme-options-grid button').forEach(button => {
@@ -664,7 +928,6 @@ function initializeDOMElements() {
         displaySystemMessage("Theme change cancelled.", 'info', true);
     });
 
-    // Corrected Support Creator Button Listener
     if (supportCreatorButton) supportCreatorButton.addEventListener('click', () => {
         if (supportPromptModal) supportPromptModal.classList.remove('hidden');
     });
@@ -690,6 +953,130 @@ function initializeDOMElements() {
         if (supportNoInternetModal) supportNoInternetModal.classList.add('hidden');
     });
 }
+
+// --- INTRO SEQUENCE FUNCTIONS ---
+function initIntroSequence() {
+    introSequenceState.steps = [
+        {
+            title: "WELCOME TO SYSTEM 64",
+            body: () => `
+  <style>
+    .dot-loader::before {
+      display: inline-block;
+      font-family: monospace;
+      white-space: pre;
+      content: '•--------';
+      animation: dotMove 2s steps(8) infinite alternate;
+    }
+
+    @keyframes dotMove {
+      0%   { content: '•--------'; }
+      12.5%{ content: '-•-------'; }
+      25%  { content: '--•------'; }
+      37.5%{ content: '---•-----'; }
+      50%  { content: '----•----'; }
+      62.5%{ content: '-----•---'; }
+      75%  { content: '------•--'; }
+      87.5%{ content: '-------•-'; }
+      100% { content: '--------•'; }
+    }
+  </style>
+
+  <p><strong>Booting Up SYSTEM 64</strong> <span class="dot-loader"></span></p>
+  <p>Hey <strong>${characterData.name || 'Operator'}</strong>! you are booting up the system. This system helps you build real-life skills like a game.</p>
+`,
+            buttonText: "OK",
+            centered: false
+
+        },
+        {
+            title: "Instructions - Part 1",
+            body: () => `<p>You’ll get tasks (“Scenarios”) tied to skills like strength, learning, or budgeting. Each task shows XP, difficulty, and a timer if needed.</p>
+                                 <p>Hit Accept to start</p>
+                                 <p>Decline to skip</p>
+                                 <p>Complete or Fail based on how it went</p>`,
+            buttonText: "OK",
+            centered: true
+        },
+        {
+            title: "Instructions - Part 2",
+            body: () => `<ul>
+                                    <li>New Task gives you another challenge</li>
+                                    <li>Reset Progress wipes everything (careful!)</li>
+                                    <li><span class="red-text">Don't cheat, the system watches</span></li>
+                                    <li>Take breaks when needed</li>
+                                    <li>Tap or hold the "64" for theme surprises</li>
+                                 </ul>`,
+            buttonText: "OK",
+            centered: true
+        },
+        {
+            title: "System Online",
+            body: () => `<p>Level up your real-life self. SYSTEM 64 is online.</p>`,
+            buttonText: "Let's Go!",
+            centered: false // Or true, for consistency
+        }
+    ];
+}
+
+function startIntroSequence() {
+    if (!introSequenceModal || !characterData.name) return; // Ensure character exists
+    introSequenceState.isActive = true;
+    introSequenceState.currentStep = 0;
+    renderIntroStep();
+    introSequenceModal.classList.remove('hidden');
+    updateControlButtonsState(); // Disable main controls during intro
+}
+
+function renderIntroStep() {
+    if (!introSequenceModal || !introSequenceTitle || !introSequenceBody || !introSequenceActions) return;
+
+    const stepConfig = introSequenceState.steps[introSequenceState.currentStep];
+    if (!stepConfig) return; // Should not happen
+
+    introSequenceTitle.textContent = stepConfig.title;
+    introSequenceBody.innerHTML = stepConfig.body();
+
+    const modalContent = introSequenceModal.querySelector('.modal-content');
+    if (modalContent) {
+        if (stepConfig.centered) {
+            modalContent.classList.add('intro-centered-content');
+        } else {
+            modalContent.classList.remove('intro-centered-content');
+        }
+    }
+
+
+    introSequenceActions.innerHTML = ''; // Clear previous buttons
+    const actionButton = document.createElement('button');
+    actionButton.textContent = stepConfig.buttonText;
+    actionButton.classList.add('modal-button-confirm'); // Use existing class for styling
+    if (stepConfig.centered) { // Ensure small-bottom-center look
+        actionButton.classList.add('small-bottom-center');
+    }
+    actionButton.addEventListener('click', () => {
+        playButtonClickSound();
+        advanceIntroSequence();
+    });
+    introSequenceActions.appendChild(actionButton);
+}
+
+function advanceIntroSequence() {
+    introSequenceState.currentStep++;
+    if (introSequenceState.currentStep < introSequenceState.steps.length) {
+        renderIntroStep();
+    } else {
+        // Sequence finished
+        introSequenceModal.classList.add('hidden');
+        localStorage.setItem('hasSeenIntro_v1', 'true');
+        introSequenceState.isActive = false;
+        displaySystemMessage(`Welcome, ${characterData.name}! System ready.`, 'info');
+        generateAndDisplayTask();
+        updateControlButtonsState(); // Re-enable main controls
+    }
+}
+// --- END INTRO SEQUENCE FUNCTIONS ---
+
 
 function initializeCharacterData(name, age, status, weight, height) {
     characterData = {
@@ -741,13 +1128,13 @@ function displaySystemMessage(msg, type = 'info', temporary = false, duration = 
 }
 
 function updateControlButtonsState() {
-    const buttonsDisabled = taskInProgress || emergencyCooldownActive;
+    const buttonsDisabled = taskInProgress || emergencyCooldownActive || introSequenceState.isActive;
     if (generateTaskButton) generateTaskButton.disabled = buttonsDisabled;
-    if (resetProgressButton) resetProgressButton.disabled = (taskInProgress && currentTask && currentTask.timerRunning) || emergencyCooldownActive;
-    if (characterProfileButton) characterProfileButton.disabled = emergencyCooldownActive;
-    if (dashboardButton) dashboardButton.disabled = emergencyCooldownActive;
-    if (easterEggTrigger64) easterEggTrigger64.style.pointerEvents = emergencyCooldownActive ? 'none' : 'auto';
-    if (supportCreatorButton) supportCreatorButton.disabled = emergencyCooldownActive;
+    if (resetProgressButton) resetProgressButton.disabled = (taskInProgress && currentTask && currentTask.timerRunning) || emergencyCooldownActive || introSequenceState.isActive;
+    if (characterProfileButton) characterProfileButton.disabled = emergencyCooldownActive || introSequenceState.isActive;
+    if (dashboardButton) dashboardButton.disabled = emergencyCooldownActive || introSequenceState.isActive;
+    if (easterEggTrigger64) easterEggTrigger64.style.pointerEvents = (emergencyCooldownActive || introSequenceState.isActive) ? 'none' : 'auto';
+    if (supportCreatorButton) supportCreatorButton.disabled = emergencyCooldownActive || introSequenceState.isActive;
 }
 
 function handleSetupSubmit(event) {
@@ -761,7 +1148,10 @@ function handleSetupSubmit(event) {
     if (isNaN(N('heightInput')) || N('heightInput') < 1) errors.push("Valid height missing.");
     if (errors.length > 0) { displaySystemMessage("Error: " + errors.join(" "), 'error', true, 4000); playErrorSound(); return; }
     initializeCharacterData(V('nameInput'), N('ageInput'), V('statusInput'), N('weightInput'), N('heightInput'));
-    hideSetupScreen(); initializeMainUI(); displaySystemMessage("Character created! Welcome, " + characterData.name + ".", 'success', true); playSuccessSound(); generateAndDisplayTask();
+    hideSetupScreen(); initializeMainUI();
+    localStorage.removeItem('hasSeenIntro_v1'); // Ensure intro shows for new character
+    initIntroSequence(); // Re-init steps with new character name
+    startIntroSequence();
 }
 
 function getLevelName(level) {
@@ -773,7 +1163,7 @@ function createModalContentElement(tag, textOrHtml, parent, className = '') {
     if (className) el.className = className; if (parent) parent.appendChild(el); return el;
 }
 function displayCharacterProfile() {
-    if (emergencyCooldownActive) { displaySystemMessage("System Lockout: Profile access restricted.", 'error', true); playErrorSound(); return; }
+    if (emergencyCooldownActive || introSequenceState.isActive) { displaySystemMessage("System Lockout: Profile access restricted.", 'error', true); playErrorSound(); return; }
     if (!profileContent) return;
     profileContent.innerHTML = '';
     createModalContentElement('p', `<strong>Name:</strong> ${characterData.name}`, profileContent);
@@ -788,21 +1178,53 @@ function displayCharacterProfile() {
     if (characterProfileModal) characterProfileModal.classList.remove('hidden');
 }
 
+// Helper function to render operator stats
+function renderOperatorStats(containerId) {
+    const statsContainer = document.getElementById(containerId);
+    if (!statsContainer) {
+        console.error("Stats container not found for operator stats:", containerId);
+        return;
+    }
+    statsContainer.innerHTML = ''; // Clear previous
+
+    if (!characterData || !characterData.name) return;
+
+    createModalContentElement('p', `<strong>Operator:</strong> ${characterData.name}`, statsContainer);
+    createModalContentElement('p', `<strong>Rank:</strong> ${characterData.level} (${getLevelName(characterData.level)})`, statsContainer);
+    createModalContentElement('p', `<strong>Experience Protocol:</strong> ${characterData.xp}% / ${XP_PER_LEVEL}XP`, statsContainer);
+    createModalContentElement('p', `<strong>Unique Signature:</strong> ${characterData.uniqueSkill}`, statsContainer);
+}
+
 function displayDashboard() {
-    if (emergencyCooldownActive) { displaySystemMessage("System Lockout: Dashboard access restricted.", 'error', true); playErrorSound(); return; }
+    if (emergencyCooldownActive || introSequenceState.isActive) {
+        displaySystemMessage("System Lockout: Dashboard access restricted.", 'error', true);
+        playErrorSound();
+        return;
+    }
     if (!characterData || !characterData.name) {
         displaySystemMessage("Create a character first to view the dashboard.", 'info', true);
         return;
     }
-    if (!dashboardContent) return;
-    dashboardContent.innerHTML = '';
 
-    createModalContentElement('p', `<strong>Operator:</strong> ${characterData.name}`, dashboardContent);
-    createModalContentElement('p', `<strong>Rank:</strong> ${characterData.level} (${getLevelName(characterData.level)})`, dashboardContent);
-    createModalContentElement('p', `<strong>Experience Protocol:</strong> ${characterData.xp}% / ${XP_PER_LEVEL}XP`, dashboardContent);
-    createModalContentElement('p', `<strong>Unique Signature:</strong> ${characterData.uniqueSkill}`, dashboardContent);
+    const dashboardModalEl = document.getElementById('dashboardModal');
+    const normalSkillsContentDiv = document.getElementById('normalDashboardSkillsContent');
+    const normalDashboardViewDiv = document.getElementById('normalDashboardView');
+    const advancedDashboardViewDiv = document.getElementById('advancedDashboardView');
 
-    createModalContentElement('hr', '', dashboardContent, 'margin-top:15px; margin-bottom:15px;');
+    if (!normalSkillsContentDiv || !dashboardModalEl || !normalDashboardViewDiv || !advancedDashboardViewDiv) {
+        console.error("Dashboard view elements not found for displayDashboard!");
+        return;
+    }
+
+    // Set initial view states
+    normalDashboardViewDiv.classList.remove('hidden');
+    advancedDashboardViewDiv.classList.add('hidden');
+
+    // Render operator text stats for the normal view
+    renderOperatorStats('normalDashboardTextStats');
+
+    // --- Render skill progress bars (Your existing logic) ---
+    normalSkillsContentDiv.innerHTML = ''; // Clear previous skills
 
     const domains = {};
     for (const skill in SKILLS_CONFIG) {
@@ -812,7 +1234,7 @@ function displayDashboard() {
     }
 
     for (const domainName in domains) {
-        const domainGroup = createModalContentElement('div', '', dashboardContent, 'skill-domain-group');
+        const domainGroup = createModalContentElement('div', '', normalSkillsContentDiv, 'skill-domain-group');
         createModalContentElement('h5', `${domainName} Aptitudes`, domainGroup);
         const skillsContainer = createModalContentElement('div', '', domainGroup, 'skills-container-grid');
 
@@ -820,10 +1242,124 @@ function displayDashboard() {
             const skillBox = createModalContentElement('div', '', skillsContainer, 'skill-entry-box');
             const formattedSkillName = skillName.replace(/([A-Z])/g, ' $1').trim();
             createModalContentElement('p', `<strong>${formattedSkillName}</strong>`, skillBox);
-            createModalContentElement('p', `Level: ${characterData.skills[skillName] || 1}`, skillBox);
+
+            const skillLevel = characterData.skills[skillName] || 1;
+            const MAX_SKILL_LEVEL_FOR_BAR = 25;
+
+            const progressLabel = document.createElement('label');
+            const progressId = `skill-progress-${domainName.replace(/\s+/g, '-')}-${skillName}`;
+            progressLabel.setAttribute('for', progressId);
+            progressLabel.innerHTML = `Lvl ${skillLevel} <span style="font-size:0.8em; opacity:0.7;">(bar max: ${MAX_SKILL_LEVEL_FOR_BAR})</span>:`;
+            skillBox.appendChild(progressLabel);
+
+            const progressBar = document.createElement('progress');
+            progressBar.id = progressId;
+            progressBar.value = skillLevel;
+            progressBar.max = MAX_SKILL_LEVEL_FOR_BAR;
+            progressBar.textContent = `${Math.round((skillLevel / MAX_SKILL_LEVEL_FOR_BAR) * 100)}%`;
+            skillBox.appendChild(progressBar);
         });
     }
-    if (dashboardModal) dashboardModal.classList.remove('hidden');
+    // --- End of skill progress bar rendering ---
+
+    if (dashboardModalEl) dashboardModalEl.classList.remove('hidden');
+}
+
+function renderRadarChart() {
+    if (!characterData || !characterData.name) {
+        console.warn("Cannot render radar chart without character data.");
+        return;
+    }
+
+    const radarChartCanvas = document.getElementById('skillRadarChart');
+    if (!radarChartCanvas) {
+        console.error("Radar chart canvas element not found!");
+        return;
+    }
+
+    renderOperatorStats('advancedDashboardTextStats');
+
+    const skillLabels = [];
+    const skillDataPoints = [];
+    const MAX_RADAR_LEVEL = 25;
+
+    for (const skillName in SKILLS_CONFIG) {
+        const formattedSkillName = skillName.replace(/([A-Z])/g, ' $1').trim();
+        skillLabels.push(formattedSkillName);
+        skillDataPoints.push(characterData.skills[skillName] || 1);
+    }
+
+    if (skillRadarChartInstance) {
+        skillRadarChartInstance.destroy();
+    }
+
+    const bodyStyles = getComputedStyle(document.body);
+    const chartPrimaryColor = bodyStyles.getPropertyValue('--color-primary').trim();
+    const chartTextColor = bodyStyles.getPropertyValue('--color-text').trim();
+    const chartGridColor = bodyStyles.getPropertyValue('--color-medium-gray').trim() + '60';
+    const chartBackgroundColor = chartPrimaryColor + '4D';
+
+    const chartData = {
+        labels: skillLabels,
+        datasets: [{
+            label: 'Skill Levels',
+            data: skillDataPoints,
+            fill: true,
+            backgroundColor: chartBackgroundColor,
+            borderColor: chartPrimaryColor,
+            pointBackgroundColor: chartPrimaryColor,
+            pointBorderColor: bodyStyles.getPropertyValue('--modal-content-background').trim() || '#fff',
+            pointHoverBackgroundColor: bodyStyles.getPropertyValue('--modal-content-background').trim() || '#fff',
+            pointHoverBorderColor: chartPrimaryColor,
+            borderWidth: 2
+        }]
+    };
+
+    const chartConfig = {
+        type: 'radar',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    angleLines: { display: true, color: chartGridColor },
+                    grid: { color: chartGridColor },
+                    pointLabels: {
+                        color: chartTextColor,
+                        font: { size: 10, family: bodyStyles.getPropertyValue('--font-family-main').trim() }
+                    },
+                    suggestedMin: 0,
+                    suggestedMax: MAX_RADAR_LEVEL,
+                    ticks: {
+                        display: true,
+                        stepSize: Math.ceil(MAX_RADAR_LEVEL / 5),
+                        color: chartTextColor + 'AA',
+                        backdropColor: 'transparent',
+                        font: { family: bodyStyles.getPropertyValue('--font-family-main').trim() }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: { color: chartTextColor, font: { family: bodyStyles.getPropertyValue('--font-family-main').trim() } }
+                },
+                tooltip: { enabled: true }
+            }
+        }
+    };
+
+    if (currentTheme === '8bit') {
+        chartConfig.options.scales.r.pointLabels.font.size = 8;
+        chartConfig.options.scales.r.ticks.display = false;
+        if (!chartConfig.options.elements) chartConfig.options.elements = {}; // Ensure elements object exists
+        chartConfig.options.elements.line = { borderWidth: 3 };
+        chartConfig.options.plugins.legend.position = 'bottom';
+    }
+
+    skillRadarChartInstance = new Chart(radarChartCanvas, chartConfig);
 }
 
 
@@ -940,12 +1476,14 @@ function generateTask() {
     };
 }
 
-
 function generateAndDisplayTask() {
-    if (emergencyCooldownActive) {
-        displaySystemMessage("System Lockout: New tasks unavailable.", 'error', true);
-        if (taskDisplayDiv) taskDisplayDiv.innerHTML = '<p style="text-align:center; color: var(--color-error); font-size: 1.2em;">SYSTEM LOCKOUT ACTIVE</p>';
-        playErrorSound(); return;
+    if (emergencyCooldownActive || introSequenceState.isActive) {
+        if (emergencyCooldownActive) {
+            displaySystemMessage("System Lockout: New tasks unavailable.", 'error', true);
+            if (taskDisplayDiv) taskDisplayDiv.innerHTML = '<p style="text-align:center; color: var(--color-error); font-size: 1.2em;">SYSTEM LOCKOUT ACTIVE</p>';
+            playErrorSound();
+        }
+        return;
     }
     if (taskInProgress) { displaySystemMessage("Resolve current task.", 'error', true); playErrorSound(); return; }
     clearTaskUI(); currentTask = generateTask();
@@ -953,7 +1491,7 @@ function generateAndDisplayTask() {
         renderTaskBox(currentTask, 'initial');
         lastTaskGeneratedTime = Date.now();
     }
-    else if (taskDisplayDiv) taskDisplayDiv.innerHTML = '<p style-align:center;>Awaiting Task Assignment...</p>';
+    else if (taskDisplayDiv) taskDisplayDiv.innerHTML = '<p style="text-align:center;">Awaiting Task Assignment...</p>';
     updateControlButtonsState();
 }
 function clearTaskUI() {
@@ -997,12 +1535,14 @@ function renderTaskBox(task, mode = 'initial') {
     taskDisplayDiv.appendChild(box);
 }
 function handleTaskAction(event) {
-    if (emergencyCooldownActive) { displaySystemMessage("System Lockout: Actions unavailable.", 'error', true); playErrorSound(); return; }
+    if (emergencyCooldownActive || introSequenceState.isActive) { displaySystemMessage("System Lockout: Actions unavailable.", 'error', true); playErrorSound(); return; }
     const button = event.target.closest('button[data-action]'); if (!button || !currentTask) return;
     const action = button.dataset.action;
     switch (action) {
-        case 'accept': handleTaskAccept(currentTask); break; case 'decline': handleTaskDecline(currentTask); break;
-        case 'start-timer': handleTaskStartTimer(currentTask); break; case 'complete': handleTaskCompleted(currentTask); break;
+        case 'accept': handleTaskAccept(currentTask); break;
+        case 'decline': handleTaskDecline(currentTask); break;
+        case 'start-timer': handleTaskStartTimer(currentTask); break;
+        case 'complete': handleTaskCompleted(currentTask); break;
         case 'fail': handleTaskFailed(currentTask, false); break;
     }
 }
@@ -1010,9 +1550,40 @@ function handleTaskAccept(task) {
     if (taskInProgress && currentTask && currentTask.timerRunning) { displaySystemMessage("Timer active. Cannot re-accept.", 'error', true); playErrorSound(); return; }
     displaySystemMessage("Scenario Started.", 'info', true); taskInProgress = true; renderTaskBox(task, 'accepted'); updateControlButtonsState();
 }
+
 function handleTaskDecline(task) {
-    if (taskInProgress) { displaySystemMessage("Cannot decline active task.", 'error', true); playErrorSound(); return; }
-    displaySystemMessage("Scenario Cancelled.", 'info', true); clearTaskUI(); currentTask = null; taskInProgress = false; generateAndDisplayTask();
+    if (taskInProgress && currentTask && currentTask.id === task.id) {
+        displaySystemMessage("Resolve active task or reset if stuck.", 'error', true); playErrorSound(); return;
+    }
+
+    consecutiveSkips++;
+
+    if (skipPenaltyActive) {
+        loseXP(SKIP_PENALTY_XP);
+        displaySystemMessage(`Task Skipped. -${SKIP_PENALTY_XP} XP penalty applied.`, 'warning', true, 4000);
+    } else {
+        displaySystemMessage("Scenario Cancelled.", 'info', true);
+    }
+
+    if (!skipPenaltyActive && consecutiveSkips === MAX_CONSECUTIVE_SKIPS_BEFORE_WARNING) {
+        if (skipWarningModal) skipWarningModal.classList.remove('hidden');
+    }
+    else if (!skipPenaltyActive && consecutiveSkips >= MAX_CONSECUTIVE_SKIPS_BEFORE_PENALTY_ACTIVE) {
+        skipPenaltyActive = true;
+        displaySystemMessage("Skip penalty protocol now active. Future skips will incur XP deduction.", 'error', false);
+        playErrorSound();
+    }
+
+    saveSessionState();
+
+    clearTaskUI();
+    currentTask = null;
+    taskInProgress = false;
+    if (!emergencyCooldownActive) {
+        generateAndDisplayTask();
+    } else {
+        updateControlButtonsState();
+    }
 }
 
 function handleTaskStartTimer(task) {
@@ -1131,7 +1702,15 @@ function handleTaskCompleted(taskToComplete) {
     const desc = currentTask.description.replace(/<[^>]+>/g, '').substring(0, 30);
     displaySystemMessage(`"${desc}..." completed successfully!`, 'success', true, 4000); playSuccessSound();
     addXP(currentTask.xpGain); increaseSkillLevel(currentTask.skill);
-    sessionTaskCompletions++; saveSessionState(); checkEmergencyCooldown();
+
+    sessionTaskCompletions++;
+    consecutiveSkips = 0;
+    if (skipPenaltyActive) {
+        skipPenaltyActive = false;
+        displaySystemMessage("Good work! Skip penalty protocol has been reset.", 'success', true, 5000);
+    }
+    saveSessionState();
+    checkEmergencyCooldown();
     clearTaskUI(); currentTask = null; taskInProgress = false;
     if (!emergencyCooldownActive) generateAndDisplayTask();
     else updateControlButtonsState();
@@ -1143,7 +1722,16 @@ function handleTaskFailed(taskToFail, autoFailed = false) {
     const reason = autoFailed ? " (time expired or dismissed)" : "";
     const d = currentTask.description.replace(/<[^>]+>/g, '').substring(0, 30);
     displaySystemMessage(`"${d}..." failed${reason}.`, 'error', true, 4000); playErrorSound();
-    loseXP(currentTask.failurePenalty); saveSessionState();
+    loseXP(currentTask.failurePenalty);
+
+    if (!autoFailed) {
+        consecutiveSkips = 0;
+        if (skipPenaltyActive) {
+            skipPenaltyActive = false;
+            displaySystemMessage("Task attempt noted. Skip penalty protocol reset.", 'info', true, 5000);
+        }
+    }
+    saveSessionState();
     clearTaskUI(); currentTask = null; taskInProgress = false;
     if (!emergencyCooldownActive) generateAndDisplayTask();
     else { checkEmergencyCooldown(); updateControlButtonsState(); }
@@ -1153,24 +1741,52 @@ function saveSessionState() {
     if (emergencyCooldownActive) localStorage.setItem('emergencyCooldownEndTimeV3', emergencyCooldownEndTime.toString());
     else localStorage.removeItem('emergencyCooldownEndTimeV3');
     localStorage.setItem('sessionTaskCompletionsV3', sessionTaskCompletions.toString());
+
+    localStorage.setItem('consecutiveSkipsV3', consecutiveSkips.toString());
+    localStorage.setItem('skipPenaltyActiveV3', skipPenaltyActive.toString());
 }
 function loadSessionState() {
     const storedEndTime = localStorage.getItem('emergencyCooldownEndTimeV3');
     if (storedEndTime) {
         emergencyCooldownEndTime = parseInt(storedEndTime, 10);
-        if (Date.now() < emergencyCooldownEndTime) emergencyCooldownActive = true;
-        else {
+        if (Date.now() < emergencyCooldownEndTime) {
+            emergencyCooldownActive = true;
+        } else {
             emergencyCooldownActive = false; sessionTaskCompletions = 0;
             localStorage.removeItem('emergencyCooldownEndTimeV3');
             localStorage.removeItem('sessionTaskCompletionsV3');
+            localStorage.removeItem('consecutiveSkipsV3');
+            localStorage.removeItem('skipPenaltyActiveV3');
         }
-    } else emergencyCooldownActive = false;
+    } else {
+        emergencyCooldownActive = false;
+    }
+
     if (!emergencyCooldownActive || Date.now() >= emergencyCooldownEndTime) {
         sessionTaskCompletions = parseInt(localStorage.getItem('sessionTaskCompletionsV3'), 10) || 0;
         if (emergencyCooldownActive && Date.now() >= emergencyCooldownEndTime) {
             sessionTaskCompletions = 0; localStorage.setItem('sessionTaskCompletionsV3', '0');
+            consecutiveSkips = 0; localStorage.removeItem('consecutiveSkipsV3');
+            skipPenaltyActive = false; localStorage.removeItem('skipPenaltyActiveV3');
         }
-    } else sessionTaskCompletions = parseInt(localStorage.getItem('sessionTaskCompletionsV3'), 10) || 0;
+    } else {
+
+        emergencyCooldownActive = false;
+    }
+
+    if (!emergencyCooldownActive || Date.now() >= emergencyCooldownEndTime) {
+        sessionTaskCompletions = parseInt(localStorage.getItem('sessionTaskCompletionsV3'), 10) || 0;
+        if (emergencyCooldownActive && Date.now() >= emergencyCooldownEndTime) { // Cooldown just expired
+            sessionTaskCompletions = 0; localStorage.setItem('sessionTaskCompletionsV3', '0');
+            consecutiveSkips = 0; localStorage.removeItem('consecutiveSkipsV3');
+            skipPenaltyActive = false; localStorage.removeItem('skipPenaltyActiveV3');
+        }
+    } else { // Cooldown is active but not yet expired
+        sessionTaskCompletions = parseInt(localStorage.getItem('sessionTaskCompletionsV3'), 10) || 0;
+    }
+
+    consecutiveSkips = parseInt(localStorage.getItem('consecutiveSkipsV3')) || 0;
+    skipPenaltyActive = localStorage.getItem('skipPenaltyActiveV3') === 'true';
 }
 function checkEmergencyCooldown() {
     if (emergencyCooldownActive) {
@@ -1205,12 +1821,15 @@ function hideEmergencyQuestModalAndEndCooldown() {
     if (emergencyQuestModal) emergencyQuestModal.classList.add('hidden');
     emergencyCooldownActive = false; sessionTaskCompletions = 0;
     localStorage.removeItem('emergencyCooldownEndTimeV3'); localStorage.setItem('sessionTaskCompletionsV3', '0');
+    localStorage.removeItem('consecutiveSkipsV3'); // Clear skip data
+    localStorage.removeItem('skipPenaltyActiveV3');
+    consecutiveSkips = 0; skipPenaltyActive = false; // Reset in-memory vars too
     displaySystemMessage("Cooldown Finished. System returning to normal.", 'success', true, 5000); playSuccessSound();
     updateControlButtonsState(); generateAndDisplayTask();
 }
 
 function startResetProcess() {
-    if (emergencyCooldownActive) { displaySystemMessage("System Lockout: Reset unavailable.", 'error', true); playErrorSound(); return; }
+    if (emergencyCooldownActive || introSequenceState.isActive) { displaySystemMessage("System Lockout: Reset unavailable.", 'error', true); playErrorSound(); return; }
     if (taskInProgress && currentTask && currentTask.timerRunning) { displaySystemMessage("Cannot reset while a timed task is active.", "error", true); playErrorSound(); return; }
     resetConfirmationStep = 0;
     if (resetConfirmationMessageDiv) resetConfirmationMessageDiv.textContent = resetConfirmationMessages[resetConfirmationStep];
@@ -1237,11 +1856,16 @@ function performFullReset() {
     localStorage.removeItem('rlLevelingCharV3'); localStorage.removeItem('rlLevelingScenarioV3');
     localStorage.removeItem('emergencyCooldownEndTimeV3'); localStorage.removeItem('sessionTaskCompletionsV3');
     localStorage.removeItem('rlLevelingCheatAttemptsV3');
+    localStorage.removeItem('consecutiveSkipsV3');
+    localStorage.removeItem('skipPenaltyActiveV3');
+    localStorage.removeItem('hasSeenIntro_v1'); // Clear intro flag
 
     characterData = { name: null, skills: {} };
     for (const skillName in SKILLS_CONFIG) characterData.skills[skillName] = 1;
     scenarioCounter = 0; sessionTaskCompletions = 0; emergencyCooldownActive = false; emergencyCooldownEndTime = 0;
     cheatAttempts = 0; lastTaskGeneratedTime = 0; cheaterTaskToRestore = null;
+    consecutiveSkips = 0; skipPenaltyActive = false;
+    introSequenceState.isActive = false; // Ensure intro sequence is not considered active
 
     if (emergencyTimerIntervalId) clearInterval(emergencyTimerIntervalId);
     if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
@@ -1249,8 +1873,9 @@ function performFullReset() {
     clearTaskUI();
     if (messageDiv) { messageDiv.textContent = ''; messageDiv.className = 'message'; }
     [characterProfileModal, dashboardModal, timerCompleteModal, resetConfirmationModal, emergencyQuestModal, cheatModal,
-        simpleThemeToggleModal, superSecretThemesModal, // Added new modals
-        supportPromptModal, supportRedirectConfirmModal, supportNoInternetModal
+        simpleThemeToggleModal, superSecretThemesModal,
+        supportPromptModal, supportRedirectConfirmModal, supportNoInternetModal,
+        skipWarningModal, introSequenceModal
     ].forEach(modal => { if (modal) modal.classList.add('hidden'); });
     showSetupScreen(); updateControlButtonsState();
     displaySystemMessage("SYSTEM RESET! All progress wiped. A fresh start awaits!", 'warning', false); playErrorSound();
@@ -1259,11 +1884,11 @@ function performFullReset() {
 
 // --- "64" Click and Long Press Logic ---
 function handle64Click(event) {
-    if (isLongPressActive) { // If long press was activated, don't process as click
-        isLongPressActive = false; // Reset flag
+    if (isLongPressActive) {
+        isLongPressActive = false;
         return;
     }
-    if (emergencyCooldownActive) return;
+    if (emergencyCooldownActive || introSequenceState.isActive) return;
     playButtonClickSound();
 
     const targetTheme = currentTheme === 'cyberpunk' ? 'Minimalist' : 'Cyberpunk';
@@ -1273,11 +1898,10 @@ function handle64Click(event) {
 
 function handle64PressStart(event) {
     event.preventDefault();
-    if (emergencyCooldownActive || longPressTimer) return;
-    // No sound here, wait for actual activation or click
-    isLongPressActive = false; // Reset flag at start of potential long press
+    if (emergencyCooldownActive || longPressTimer || introSequenceState.isActive) return;
+    isLongPressActive = false;
     longPressTimer = setTimeout(() => {
-        isLongPressActive = true; // Set flag indicating long press has occurred
+        isLongPressActive = true;
         activateSuperSecretSystem();
     }, LONG_PRESS_DURATION);
 }
@@ -1287,9 +1911,7 @@ function handle64PressEnd() {
         clearTimeout(longPressTimer);
         longPressTimer = null;
     }
-    // isLongPressActive flag will determine if click handler should proceed or not
 }
-
 
 function activateSuperSecretSystem() {
     longPressTimer = null;
@@ -1299,9 +1921,8 @@ function activateSuperSecretSystem() {
         return;
     }
     displaySystemMessage("SUPER SECRET SYSTEM ACTIVATED!", "success", true, 2500);
-    playSound('sawtooth', 80, 0.4, 0.03, 0.02, 0.35); // Deep activation sound
+    playSound('sawtooth', 80, 0.4, 0.03, 0.02, 0.35);
     setTimeout(() => playSound('sine', 1200, 0.2, 0.02, 0.05, 0.15), 150);
-
 
     setTimeout(() => {
         resetSuperSecretModal();
@@ -1318,7 +1939,7 @@ function resetSuperSecretModal() {
 // PWA Service Worker Registration
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js') // Make sure this path is correct
+        navigator.serviceWorker.register('./service-worker.js')
             .then(registration => {
                 console.log('ServiceWorker registered successfully:', registration.scope);
             })

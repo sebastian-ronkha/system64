@@ -4,7 +4,7 @@
   "description": "Your awesome real-life leveling system!",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0A0A0A",
+  "background_color": "#DDF9F1",
   "theme_color": "#00DD33",
   "icons": [
     {
@@ -31,7 +31,7 @@
       "src": "icons/icon-144x144.png",
       "sizes": "144x144",
       "type": "image/png",
-      "purpose": "any" // "any" is a good default, "maskable" is for adaptive icons
+      "purpose": "any"
     },
     {
       "src": "icons/icon-152x152.png",
@@ -42,7 +42,7 @@
       "src": "icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable" // Important for A2HS
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-256x256.png",
@@ -58,7 +58,7 @@
       "src": "icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable" // Important for A2HS
+      "purpose": "any maskable"
     }
   ]
 }
