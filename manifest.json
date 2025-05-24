@@ -1,17 +1,17 @@
 {
-  "name": "SYSTEM 64",                         // Your app's full name
-  "short_name": "Sys64",                      // Shorter name for home screen
-  "description": "Level up your real life!",  // A little description
-  "start_url": ".",                           // Where the app starts (usually your main page)
-  "display": "standalone",                    // Makes it feel like a native app
-  "background_color": "#0a0f18",              // Background color for splash screen
-  "theme_color": "#00DD33",                   // Color for the browser's address bar, etc.
+  "name": "SYSTEM 64",                        
+  "short_name": "Sys64",                      
+  "description": "Level up your real life!",  
+  "start_url": ".",                          
+  "display": "standalone",                   
+  "background_color": "#0a0f18",             
+  "theme_color": "#00DD33",                  
 
-  "icons": [                                  // <--- THIS IS THE SECTION YOU NEED TO ADD/REPLACE
+  "icons": [                                 
     {
-      "src": "icons/icon-48x48.png",          // Tells where to find the 48x48 picture
-      "sizes": "48x48",                       // Says it's 48x48 pixels
-      "type": "image/png",                    // Says it's a PNG picture
+      "src": "icons/icon-48x48.png",          
+      "sizes": "48x48",                       
+      "type": "image/png",                   
       "purpose": "any"
     },
     {
@@ -45,10 +45,10 @@
       "purpose": "any"
     },
     {
-      "src": "icons/icon-192x192.png",        // This is a common one for "Add to Home Screen"
+      "src": "icons/icon-192x192.png",       
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"             // "maskable" helps it look good on different phones
+      "purpose": "any maskable"            
     },
     {
       "src": "icons/icon-256x256.png",
@@ -63,10 +63,10 @@
       "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-512x512.png",        // This is another important one
+      "src": "icons/icon-512x512.png",       
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]                                           // <--- END OF THE ICONS SECTION
+  ]                                         
 }
