@@ -1,73 +1,64 @@
 {
-  "name": "SYSTEM 64 - Real-Life Leveling",
-  "short_name": "SYSTEM 64",
-  "description": "Level up your life with SYSTEM 64, a gamified task manager.",
-  "start_url": ".",
+  "name": "SYSTEM 64",
+  "short_name": "Sys64",
+  "description": "Your awesome real-life leveling system!",
+  "start_url": "./index.html",  // Or just "/" or "." if index.html is your entry
   "display": "standalone",
-  "background_color": "#0A0A0A",
-  "theme_color": "#00DD33",
-  "orientation": "portrait-primary",
-  "categories": ["productivity", "utilities"],
+  "background_color": "#0A0A0A", // Example, can be your body bg
+  "theme_color": "#00DD33",     // Matches your meta tag
   "icons": [
     {
-      "src": "icons/icon-48x48.png",  
+      "src": "icons/icon-48x48.png",
       "sizes": "48x48",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "icons/icon-72x72.png",  
+      "src": "icons/icon-72x72.png",
       "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
       "src": "icons/icon-96x96.png",
       "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
       "src": "icons/icon-128x128.png",
       "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "icons/icon-144x144.png", 
+      "src": "icons/icon-144x144.png",
       "sizes": "144x144",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any" // "any" is a good default, "maskable" is for adaptive icons
     },
     {
-      "src": "icons/icon-152x152.png", 
+      "src": "icons/icon-152x152.png",
       "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "icons/icon-192x192.png", 
+      "src": "icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any maskable" // Important for A2HS
     },
     {
-      "src": "icons/icon-256x256.png", 
+      "src": "icons/icon-256x256.png",
       "sizes": "256x256",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
       "src": "icons/icon-384x384.png",
       "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "icons/icon-512x512.png", 
+      "src": "icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any maskable" // Important for A2HS
     }
   ]
 }
