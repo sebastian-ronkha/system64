@@ -2,10 +2,10 @@
   "name": "SYSTEM 64",
   "short_name": "Sys64",
   "description": "Your awesome real-life leveling system!",
-  "start_url": "./index.html",  // Or just "/" or "." if index.html is your entry
+  "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0A0A0A", // Example, can be your body bg
-  "theme_color": "#00DD33",     // Matches your meta tag
+  "background_color": "#0A0A0A",
+  "theme_color": "#00DD33",
   "icons": [
     {
       "src": "icons/icon-48x48.png",
