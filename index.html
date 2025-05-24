@@ -1726,8 +1726,8 @@
         let themeFontLink;
         const ALL_THEMES = ['minimalist', 'cyberpunk', 'matrix', '8bit', 'crt-glow', 'early-web', 'text-terminal'];
 
-function applyTheme(theme) {
-            const normalizedTheme = theme.toLowerCase(); // <<< PLACE IT HERE
+        function applyTheme(theme) {
+            const normalizedTheme = theme.toLowerCase();
 
             if (!bodyElement || !themeFontLink) {
                 console.warn("applyTheme called before essential DOM elements (body, themeFontLink) were initialized.");
@@ -1735,11 +1735,11 @@ function applyTheme(theme) {
             }
 
             ALL_THEMES.forEach(t => bodyElement.classList.remove(`theme-${t}`));
-            bodyElement.classList.add(`theme-${theme}`);
+            bodyElement.classList.add(`theme-${normalizedTheme}`);
 
             let fontUrl = '';
             let crtTextColorRgb = '76,175,80'; // Default green for CRT
-            switch(theme) {
+            switch(normalizedTheme) {
                 case 'cyberpunk': fontUrl = 'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap'; break;
                 case 'matrix': fontUrl = 'https://fonts.googleapis.com/css2?family=VT323&display=swap'; break;
                 case '8bit': fontUrl = 'https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap'; break;
@@ -1758,7 +1758,7 @@ function applyTheme(theme) {
 
             const messageDivElement = document.getElementById('messageDiv');
             if (messageDivElement) {
-                if (theme === 'text-terminal') {
+                if (normalizedTheme === 'text-terminal') {
                     messageDivElement.classList.add('blinking-cursor');
                 } else {
                     messageDivElement.classList.remove('blinking-cursor');
@@ -1772,9 +1772,9 @@ function applyTheme(theme) {
                 }, 0);
             }
 
-            localStorage.setItem('rlLevelingThemeV3', theme);
-            currentTheme = theme;
-            playThemeActivationSound(theme);
+            localStorage.setItem('rlLevelingThemeV3', normalizedTheme);
+            currentTheme = normalizedTheme;
+            playThemeActivationSound(normalizedTheme);
         }
 
         // --- AUDIO CONTEXT & SOUNDS ---
