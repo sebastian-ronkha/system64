@@ -9,7 +9,7 @@ export default defineConfig({
       targets: [
         {
           src: path.resolve(__dirname, 'src/icons'),
-          dest: './icons' // dist/icons => ./icons since outDir = '.'
+          dest: '.' // dist/icons => ./icons since outDir = '.'
         }
       ]
     })
