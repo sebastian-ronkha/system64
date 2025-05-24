@@ -1,5 +1,5 @@
 {
-  "name": "system64",
+  "name": "system64-app",
   "private": true,
   "version": "1.0.0",
   "type": "module",
